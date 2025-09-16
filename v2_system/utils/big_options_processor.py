@@ -18,6 +18,7 @@ import sys
 # 添加V2系统路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import HK_TRADING_HOURS, US_TRADING_HOURS_DST, US_TRADING_HOURS_STD, OPTION_FILTERS, SYSTEM_CONFIG, get_stock_name, get_stock_default_price
+from .data_utils import safe_int_convert, safe_float_convert, safe_str_convert
 import futu as ft
 
 
@@ -882,8 +883,8 @@ class BigOptionsProcessor:
                     # 从快照数据中获取当前数据
                     option_row = snapshot_data[snapshot_data['code'] == option_code]
                     if not option_row.empty:
-                        current_volume = int(option_row.iloc[0].get('volume', 0))
-                        current_open_interest = int(option_row.iloc[0].get('option_open_interest', 0))
+                        current_volume = safe_int_convert(option_row.iloc[0].get('volume', 0))
+                        current_open_interest = safe_int_convert(option_row.iloc[0].get('option_open_interest', 0))
                         
                         # 获取历史成交量
                         previous_volume = self.db_manager.get_previous_option_volume(option_code, current_volume)
@@ -907,15 +908,17 @@ class BigOptionsProcessor:
                         continue
                     
                     # 从API快照数据中获取所有需要的字段
-                    current_volume = int(row.get('volume', 0))
-                    current_turnover = float(row.get('turnover', 0))
-                    last_price = float(row.get('last_price', 0))
-                    change_rate = float(row.get('change_rate', 0))
+                    # 使用安全转换函数处理可能的N/A值
+
+                    current_volume = safe_int_convert(row.get('volume', 0))
+                    current_turnover = safe_float_convert(row.get('turnover', 0))
+                    last_price = safe_float_convert(row.get('last_price', 0))
+                    change_rate = safe_float_convert(row.get('change_rate', 0))
                     update_time = str(row.get('update_time', datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
                     
-                    # 获取未平仓合约数（新增字段）
-                    current_open_interest = int(row.get('option_open_interest', 0))
-                    current_net_open_interest = int(row.get('option_net_open_interest', 0))
+                    # 获取未平仓合约数（新增字段）- 安全转换，处理N/A值
+                    current_open_interest = safe_int_convert(row.get('option_open_interest', 0))
+                    current_net_open_interest = safe_int_convert(row.get('option_net_open_interest', 0))
                     
                     # 🔥 过滤成交量为0的期权，减少磁盘消耗
                     if current_volume <= 0:

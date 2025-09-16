@@ -65,10 +65,12 @@ class MultiMarketMonitor:
         self.min_api_interval = 5  # API调用最小间隔(秒)
         
         # 监控配置
-        self.hk_enabled = len(HK_MONITOR_STOCKS) > 0
+        self.hk_enabled = len(HK_MONITOR_STOCKS) > 0 and should_update_data_off_hours('HK')
         self.us_enabled = len(US_MONITOR_STOCKS) > 0 and should_update_data_off_hours('US')
         
         self.logger.info(f"监控配置 - 港股: {'启用' if self.hk_enabled else '禁用'}, 美股: {'启用' if self.us_enabled else '禁用'}")
+        if len(HK_MONITOR_STOCKS) > 0 and not should_update_data_off_hours('HK'):
+            self.logger.info("港股监控已禁用：非交易时间调试开关已关闭")
         if len(US_MONITOR_STOCKS) > 0 and not should_update_data_off_hours('US'):
             self.logger.info("美股监控已禁用：非交易时间调试开关已关闭")
         
