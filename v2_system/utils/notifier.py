@@ -110,6 +110,15 @@ class V2Notifier:
             option_type = option_info.get('option_type', '')
             direction = option_info.get('direction', 'Unknown')
             
+            # 获取持仓相关信息
+            option_open_interest = option_info.get('option_open_interest', 0)
+            option_net_open_interest = option_info.get('option_net_open_interest', 0)
+            open_interest_diff = option_info.get('open_interest_diff', 0)
+            net_open_interest_diff = option_info.get('net_open_interest_diff', 0)
+            
+            # 判断货币单位
+            currency = "美元" if stock_code.startswith('US.') else "港币"
+            
             # 构建消息
             title = f"🔥 V2大单期权提醒"
             
@@ -119,9 +128,29 @@ class V2Notifier:
                 f"执行价: {strike_price:.2f}",
                 f"类型: {option_type}",
                 f"成交量: {volume:,}张",
-                f"成交额: {turnover:,.0f}港币",
+                f"成交额: {turnover:,.0f}{currency}",
                 f"价格: {price:.4f}",
             ]
+            
+            # 添加持仓信息（如果有数据）
+            if option_open_interest > 0 or option_net_open_interest > 0:
+                oi_parts = []
+                if option_open_interest > 0:
+                    oi_parts.append(f"持仓: {option_open_interest:,}张")
+                if option_net_open_interest > 0:
+                    oi_parts.append(f"净持仓: {option_net_open_interest:,}张")
+                if oi_parts:
+                    message_parts.append(", ".join(oi_parts))
+            
+            # 添加持仓变化信息（如果有变化）
+            if open_interest_diff != 0 or net_open_interest_diff != 0:
+                oi_change_parts = []
+                if open_interest_diff != 0:
+                    oi_change_parts.append(f"持仓变化: {open_interest_diff:+,}张")
+                if net_open_interest_diff != 0:
+                    oi_change_parts.append(f"净持仓变化: {net_open_interest_diff:+,}张")
+                if oi_change_parts:
+                    message_parts.append(", ".join(oi_change_parts))
             
             message_parts.append(f"时间: {datetime.now().strftime('%H:%M:%S')}")
             
