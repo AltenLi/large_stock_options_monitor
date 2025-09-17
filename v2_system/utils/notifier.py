@@ -102,16 +102,12 @@ class V2Notifier:
             return False
         
         try:
-            # 过滤出有变化的期权（volume_diff > 0 或者是当日开盘后首次记录）
-            changed_options = []
-            for opt in big_options:
-                volume_diff = opt.get('volume_diff', 0)
-                # 当日开盘后首次记录的期权也应该包含在内
-                if volume_diff > 0 or (volume_diff == 0 and opt.get('last_volume', 0) == opt.get('volume', 0) and opt.get('volume', 0) > 0):
-                    changed_options.append(opt)
+            # 🔥 修改：直接使用传入的期权数据，因为已经在 compare_with_previous_options 中过滤过了
+            # 传入的 big_options 已经是符合通知条件的期权
+            changed_options = big_options
             
             if not changed_options:
-                self.logger.info("V2没有期权成交量变化或开盘后首次记录，跳过汇总报告")
+                self.logger.info("V2没有符合通知条件的期权，跳过汇总报告")
                 return False
             
             current_time = datetime.now()
@@ -204,9 +200,9 @@ class V2Notifier:
                     option_detail = (
                         f"  {i}. {option_code}: {option_type}, "
                         f"{price:.3f}×{volume:,}张, +{volume_diff:,}张, "
-                        f"{turnover/10000:.1f}万"
+                        f"{turnover/10000:.1f}万, "
                         f"持仓: {option_open_interest:,}张"
-                        f"（{open_interest_diff:+,}）"
+                        f"（{open_interest_diff:+,}）, "
                         f"净持仓: {option_net_open_interest:,}张"
                         f"（{net_open_interest_diff:+,}）"
                     )

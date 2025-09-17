@@ -271,7 +271,7 @@ class V2OptionMonitor:
                     if option_code:
                         self.previous_options[option_code] = current_opt
                 
-                self.logger.debug(f"V2系统缓存更新: 当前{len(big_options)}个期权，全量缓存{len(self.previous_options)}个期权")
+                self.logger.info(f"V2系统缓存更新: 当前{len(big_options)}个期权，全量缓存{len(self.previous_options)}个期权")
                 
             else:
                 self.logger.info("V2系统本次扫描未发现大单期权")
@@ -489,18 +489,19 @@ class V2OptionMonitor:
             self.previous_options = {}
     
     def compare_with_previous_options(self, current_options: List[Dict]) -> List[Dict]:
-        """使用已计算好的变化量进行过滤，不重新计算"""
+        """使用已计算好的变化量进行过滤，基于真实的历史数据比较"""
         try:
-            # 直接使用 big_options_processor 中已经计算好的 volume_diff
-            # 不再重新计算，避免不一致的问题
+            # 🔥 新逻辑：直接使用 big_options_processor 中已经计算好的 volume_diff
+            # 这个 volume_diff 是基于数据库中的历史数据计算的，更准确
             options_with_diff = []
             for current_opt in current_options:
                 option_code = current_opt.get('option_code', '')
                 
-                # 使用已经计算好的变化量（在 big_options_processor 中计算）
+                # 使用已经计算好的变化量（在 big_options_processor 中基于数据库历史数据计算）
                 current_volume = current_opt.get('volume', 0)
                 volume_diff = current_opt.get('volume_diff', 0)
                 previous_volume = current_opt.get('last_volume', 0)
+                current_turnover = current_opt.get('turnover', 0)
                 
                 # 如果没有 volume_diff 字段，说明数据有问题，跳过
                 if 'volume_diff' not in current_opt:
@@ -520,31 +521,42 @@ class V2OptionMonitor:
                 
                 # 优先使用股票特定配置，否则使用默认配置
                 filter_config = OPTION_FILTERS.get(stock_code, OPTION_FILTERS.get(default_key, {}))
-                min_volume_diff = filter_config.get('min_volume_diff', 10)  # 默认最小增量1张
+                min_volume_diff = filter_config.get('min_volume_diff', 10)  # 默认最小增量10张
+                min_turnover = filter_config.get('min_turnover', 100000)  # 默认最小成交额
                 
-                # 发送通知的条件：
-                # 1. 首次记录的大单 (previous_volume == 0 且 current_volume > 0) - 新发现的大单
-                # 2. 增量变化且超过阈值 (abs(volume_diff) >= min_volume_diff) - 后续增量变化
-                is_first_record = (previous_volume == 0 and current_volume > 0)
-                is_significant_change = (abs(volume_diff) >= min_volume_diff)
+                # 🔥 修改通知条件：基于真实的数据变化
+                # 1. 必须有正向的成交量变化 (volume_diff > 0)
+                # 2. 变化量必须达到阈值 (volume_diff >= min_volume_diff)
+                # 3. 成交额必须达到阈值 (current_turnover >= min_turnover)
+                has_positive_change = volume_diff > 0
+                meets_volume_threshold = volume_diff >= min_volume_diff
+                meets_turnover_threshold = current_turnover >= min_turnover
                 
-                if is_first_record or (volume_diff != 0 and is_significant_change):
-                    # 首次记录或显著增量变化，发送通知
+                if has_positive_change and meets_volume_threshold and meets_turnover_threshold:
+                    # 满足通知条件
                     options_with_diff.append(opt_with_diff)
-                    if is_first_record:
-                        self.logger.debug(f"首次记录大单 {option_code}: 当前={current_volume}, 上次={previous_volume}")
-                    else:
-                        self.logger.debug(f"期权显著增量 {option_code}: 当前={current_volume}, 上次={previous_volume}, diff={volume_diff} (阈值:{min_volume_diff})")
-                elif volume_diff != 0:
-                    # 有变化但未达到阈值，不通知
-                    self.logger.debug(f"期权增量未达阈值 {option_code}: diff={volume_diff} < {min_volume_diff}，跳过通知")
+                    self.logger.info(f"✅ 期权符合通知条件 {option_code}: "
+                                   f"当前成交量={current_volume:,}, 上次={previous_volume:,}, "
+                                   f"变化量={volume_diff:+,}, 成交额={current_turnover:,.0f} "
+                                   f"(阈值: 变化量>={min_volume_diff}, 成交额>={min_turnover:,.0f})")
+                else:
+                    # 不满足通知条件，记录原因
+                    reasons = []
+                    if not has_positive_change:
+                        reasons.append(f"无正向变化(diff={volume_diff})")
+                    if not meets_volume_threshold:
+                        reasons.append(f"变化量不足(diff={volume_diff}<{min_volume_diff})")
+                    if not meets_turnover_threshold:
+                        reasons.append(f"成交额不足({current_turnover:,.0f}<{min_turnover:,.0f})")
+                    
+                    self.logger.info(f"❌ 期权不符合通知条件 {option_code}: {', '.join(reasons)}")
               
-            self.logger.info(f"V2系统期权增量比较: {len(current_options)} -> {len(options_with_diff)} (有变化)")
+            self.logger.info(f"V2系统期权通知过滤: {len(current_options)} -> {len(options_with_diff)} (符合通知条件)")
             return options_with_diff
             
         except Exception as e:
-            self.logger.error(f"V2系统期权增量比较失败: {e}")
-            # 如果比较失败，返回原数据但标记为无变化
+            self.logger.error(f"V2系统期权通知过滤失败: {e}")
+            # 如果过滤失败，返回空列表，避免发送错误通知
             return []
     
     def _check_connection(self) -> bool:

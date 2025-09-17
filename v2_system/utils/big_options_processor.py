@@ -748,6 +748,9 @@ class BigOptionsProcessor:
                     option_previous_volumes[option_code] = 0
                     option_previous_open_interests[option_code] = (0, 0)
             
+            # 🔥 新逻辑：先保存所有期权数据，再筛选大单
+            all_options_data = []  # 保存所有期权数据
+            
             # 处理每个期权的快照数据
             for _, row in snapshot_data.iterrows():
                 try:
@@ -770,7 +773,7 @@ class BigOptionsProcessor:
                     current_open_interest = safe_int_convert(row.get('option_open_interest', 0))
                     current_net_open_interest = safe_int_convert(row.get('option_net_open_interest', 0))
                     
-                    # 🔥 过滤成交量为0的期权，减少磁盘消耗
+                    # 🔥 修改：保存所有有成交量的期权，不只是大单
                     if current_volume <= 0:
                         self.logger.debug(f"V2跳过成交量为0的期权: {option_code}")
                         continue
@@ -810,11 +813,6 @@ class BigOptionsProcessor:
                     open_interest_diff = current_open_interest - previous_open_interest
                     net_open_interest_diff = current_net_open_interest - previous_net_open_interest
                     
-                    # 🔥 修复：只有当成交量真正有变化时才保存和检测大单
-                    if volume_diff <= 0:
-                        self.logger.debug(f"V2跳过无变化期权: {option_code} (成交量:{current_volume}, diff:{volume_diff})")
-                        continue
-                    
                     # 更新当日成交量缓存
                     self._update_today_volume_cache(option_code, current_volume)
                     
@@ -846,33 +844,45 @@ class BigOptionsProcessor:
                         'direction': 'Unknown'  # 批量模式下暂不获取方向信息
                     }
                     
-                    # 保存到数据库（只保存有变化的期权）
+                    # 🔥 新逻辑：保存所有期权数据到数组中
+                    all_options_data.append(trade_info)
+                    
+                    # 保存到数据库（保存所有有成交量的期权）
                     self._save_to_database(trade_info)
                     self.logger.debug(f"V2期权数据已保存: {option_code} (成交量:{current_volume}, diff:{volume_diff}, 成交额:{current_turnover:.0f})")
-                    
-                    # 检查是否满足大单条件 - 根据市场使用相应的过滤配置
-                    filter_key = 'us_default' if self.market == 'US' else 'hk_default'
-                    option_filter = OPTION_FILTERS[filter_key]
-                    
-                    is_big_trade = (
-                        current_volume >= option_filter['min_volume'] and 
-                        current_turnover >= option_filter['min_turnover'] and
-                        volume_diff >= option_filter['min_volume_diff']
-                    )
-                    
-                    if is_big_trade:
-                        big_trades.append(trade_info)
-                        
-                        self.logger.info(f"🔥 V2发现大单期权: {option_code}")
-                        self.logger.info(f"   执行价格: {strike_price:.2f}, 类型: {option_type}")
-                        self.logger.info(f"   成交量: {current_volume:,}张, 成交额: {current_turnover:,.0f}")
-                        self.logger.info(f"   股票: {stock_name}({stock_code}), 股价: {current_stock_price:.2f}")
                 
                 except Exception as e:
                     self.logger.error(f"V2处理期权{option_code}快照数据失败: {e}")
                     continue
             
-            self.logger.info(f"V2批量处理完成: {len(option_codes)}个期权, {len(big_trades)}个大单")
+            # 🔥 新逻辑：从所有期权数据中筛选出大单和有变化的期权
+            for trade_info in all_options_data:
+                option_code = trade_info['option_code']
+                current_volume = trade_info['volume']
+                current_turnover = trade_info['turnover']
+                volume_diff = trade_info['volume_diff']
+                
+                # 检查是否满足大单条件 - 根据市场使用相应的过滤配置
+                filter_key = 'us_default' if self.market == 'US' else 'hk_default'
+                option_filter = OPTION_FILTERS[filter_key]
+                
+                # 🔥 修改大单判断逻辑：保持原有的变化量阈值判断
+                is_big_trade = (
+                    current_volume >= option_filter['min_volume'] and 
+                    current_turnover >= option_filter['min_turnover'] and
+                    volume_diff >= option_filter['min_volume_diff']  # 保持原有的变化量阈值
+                )
+                
+                if is_big_trade:
+                    big_trades.append(trade_info)
+                    
+                    self.logger.info(f"🔥 V2发现大单期权: {option_code}")
+                    self.logger.info(f"   执行价格: {trade_info['strike_price']:.2f}, 类型: {trade_info['option_type']}")
+                    self.logger.info(f"   成交量: {current_volume:,}张, 成交额: {current_turnover:,.0f}")
+                    self.logger.info(f"   变化量: +{volume_diff:,}张")
+                    self.logger.info(f"   股票: {trade_info['stock_name']}({trade_info['stock_code']}), 股价: {trade_info['stock_price']:.2f}")
+            
+            self.logger.info(f"V2批量处理完成: {len(option_codes)}个期权, 保存{len(all_options_data)}个有成交量期权, {len(big_trades)}个大单")
             return big_trades
             
         except Exception as e:

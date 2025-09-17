@@ -25,3 +25,4 @@ v2_system/README.md
 v2_system/config_bak.py
 *.db
 v2_system/CREATE_EXAMPLE
+AGENT.md
