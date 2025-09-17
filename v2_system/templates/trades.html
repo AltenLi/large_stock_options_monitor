@@ -107,8 +107,8 @@
                         <th>类型</th>
                         <th>价格</th>
                         <th>数量(张)</th>
-                        <th>成交额</th>
                         <th>变化量</th>
+                        <th>成交额</th>
                         <th>持仓</th>
                         <th>持仓变化量</th>
                         <th>净持仓</th>
@@ -137,7 +137,6 @@
                         </td>
                         <td>{{ "%.3f"|format(trade.price or 0) }}</td>
                         <td>{{ "{:,}".format(trade.volume or 0) }}</td>
-                        <td>{{ "{:,.0f}".format(trade.turnover or 0) }}</td>
                         <td>
                             {% set volume_diff = trade.volume_diff|int if trade.volume_diff else 0 %}
                             {% if volume_diff > 0 %}
@@ -148,6 +147,7 @@
                                 <span class="text-muted">0</span>
                             {% endif %}
                         </td>
+                        <td>{{ "{:,.0f}".format(trade.turnover or 0) }}</td>
                         <td>
                             {% if trade.option_open_interest %}
                                 {{ "{:,}".format(trade.option_open_interest) }}
