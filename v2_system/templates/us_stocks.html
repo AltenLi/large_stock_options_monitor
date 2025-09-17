@@ -46,6 +46,7 @@
                         <th>总成交额(美元)</th>
                         <th>平均价格</th>
                         <th>持仓汇总</th>
+                        <th>持仓变化汇总</th>
                         <th>净持仓汇总</th>
                         <th>净持仓变化汇总</th>
                         <th>最新交易时间</th>
@@ -86,6 +87,16 @@
                                 {{ "{:,}".format(stock.total_open_interest) }}
                             {% else %}
                                 <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set oi_diff = stock.total_open_interest_diff|int if stock.total_open_interest_diff else 0 %}
+                            {% if oi_diff > 0 %}
+                                <span class="text-success">+{{ "{:,}".format(oi_diff) }}</span>
+                            {% elif oi_diff < 0 %}
+                                <span class="text-danger">{{ "{:,}".format(oi_diff) }}</span>
+                            {% else %}
+                                <span class="text-muted">0</span>
                             {% endif %}
                         </td>
                         <td>

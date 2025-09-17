@@ -431,6 +431,7 @@ def get_stock_stats(market='HK'):
                     SELECT 
                         cl.stock_code,
                         cl.option_type,
+                        SUM(COALESCE(cl.option_open_interest, 0)) as compare_total_open_interest,
                         SUM(COALESCE(cl.option_net_open_interest, 0)) as compare_total_net_open_interest
                     FROM compare_latest cl
                     WHERE cl.rn = 1
@@ -447,7 +448,9 @@ def get_stock_stats(market='HK'):
                     cs.latest_trade,
                     cs.total_open_interest,
                     cs.current_total_net_open_interest,
+                    COALESCE(cms.compare_total_open_interest, 0) as compare_total_open_interest,
                     COALESCE(cms.compare_total_net_open_interest, 0) as compare_total_net_open_interest,
+                    (cs.total_open_interest - COALESCE(cms.compare_total_open_interest, 0)) as open_interest_change,
                     (cs.current_total_net_open_interest - COALESCE(cms.compare_total_net_open_interest, 0)) as net_open_interest_change
                 FROM current_summary cs
                 LEFT JOIN compare_summary cms ON cs.stock_code = cms.stock_code AND cs.option_type = cms.option_type
@@ -468,8 +471,10 @@ def get_stock_stats(market='HK'):
                     'latest_trade': row[7],
                     'total_open_interest': row[8] or 0,
                     'total_net_open_interest': row[9] or 0,
-                    'compare_total_net_open_interest': row[10] or 0,
-                    'total_net_open_interest_diff': row[11] or 0  # 正确的股票粒度净持仓变化
+                    'compare_total_open_interest': row[10] or 0,
+                    'compare_total_net_open_interest': row[11] or 0,
+                    'total_open_interest_diff': row[12] or 0,  # 持仓变化量
+                    'total_net_open_interest_diff': row[13] or 0  # 净持仓变化量
                 }
                 if stock['latest_trade']:
                     try:

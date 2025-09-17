@@ -93,6 +93,7 @@
                         <th>涨跌幅</th>
                         <th>到期日</th>
                         <th>持仓</th>
+                        <th>持仓变化量</th>
                         <th>净持仓</th>
                         <th>净持仓变化</th>
                     </tr>
@@ -171,6 +172,16 @@
                                 {{ "{:,}".format(trade.option_open_interest) }}
                             {% else %}
                                 <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set oi_diff = trade.open_interest_diff|int if trade.open_interest_diff else 0 %}
+                            {% if oi_diff > 0 %}
+                                <span class="text-success">+{{ "{:,}".format(oi_diff) }}</span>
+                            {% elif oi_diff < 0 %}
+                                <span class="text-danger">{{ "{:,}".format(oi_diff) }}</span>
+                            {% else %}
+                                <span class="text-muted">0</span>
                             {% endif %}
                         </td>
                         <td>
