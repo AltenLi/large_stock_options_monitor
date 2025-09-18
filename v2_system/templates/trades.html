@@ -61,14 +61,10 @@
                        value="{{ filters.date_to }}">
             </div>
             <div class="col-md-2 mb-3">
-                <label for="filter_zero_diff" class="form-label">过滤选项</label>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="filter_zero_diff" name="filter_zero_diff" 
-                           value="true" {% if filters.filter_zero_diff %}checked{% endif %}>
-                    <label class="form-check-label" for="filter_zero_diff">
-                        <small>过滤变化量为0的期权</small>
-                    </label>
-                </div>
+                <label for="min_volume_diff" class="form-label">最小变化量</label>
+                <input type="number" class="form-control" id="min_volume_diff" name="min_volume_diff" 
+                       value="{{ filters.min_volume_diff or '' }}" placeholder="如: 100" min="0">
+                <small class="form-text text-muted">只显示变化量≥此数值的期权</small>
             </div>
             <div class="col-md-2 mb-3">
                 <label class="form-label">&nbsp;</label>

@@ -131,10 +131,10 @@ def trades(market='HK'):
         option_code = request.args.get('option_code', '')
         date_from = request.args.get('date_from', '')
         date_to = request.args.get('date_to', '')
-        filter_zero_diff = request.args.get('filter_zero_diff', 'false').lower() == 'true'
+        min_volume_diff = request.args.get('min_volume_diff', '')
         
         # 查询数据
-        trades_data = get_trades_data(market, page, per_page, stock_code, option_code, date_from, date_to, filter_zero_diff)
+        trades_data = get_trades_data(market, page, per_page, stock_code, option_code, date_from, date_to, min_volume_diff)
         
         return render_template('trades.html', 
                              trades=trades_data['trades'],
@@ -147,7 +147,7 @@ def trades(market='HK'):
                                  'option_code': option_code,
                                  'date_from': date_from,
                                  'date_to': date_to,
-                                 'filter_zero_diff': filter_zero_diff
+                                 'min_volume_diff': min_volume_diff
                              })
     except Exception as e:
         return f"错误: {str(e)}"
@@ -163,9 +163,9 @@ def api_trades(market='HK'):
         option_code = request.args.get('option_code', '')
         date_from = request.args.get('date_from', '')
         date_to = request.args.get('date_to', '')
-        filter_zero_diff = request.args.get('filter_zero_diff', 'false').lower() == 'true'
+        min_volume_diff = request.args.get('min_volume_diff', '')
         
-        trades_data = get_trades_data(market, page, per_page, stock_code, option_code, date_from, date_to, filter_zero_diff)
+        trades_data = get_trades_data(market, page, per_page, stock_code, option_code, date_from, date_to, min_volume_diff)
         return jsonify(trades_data)
     except Exception as e:
         return jsonify({'error': str(e)})
@@ -266,7 +266,7 @@ def get_database_stats(market='HK'):
             'database_path': ''
         }
 
-def get_trades_data(market='HK', page=1, per_page=50, stock_code='', option_code='', date_from='', date_to='', filter_zero_diff=False):
+def get_trades_data(market='HK', page=1, per_page=50, stock_code='', option_code='', date_from='', date_to='', min_volume_diff=''):
     """获取交易记录数据"""
     try:
         db_manager = get_db_manager(market)
@@ -294,9 +294,14 @@ def get_trades_data(market='HK', page=1, per_page=50, stock_code='', option_code
                 where_conditions.append("DATE(ot.timestamp) <= ?")
                 params.append(date_to)
             
-            # 🔥 新增：过滤变化量为0的期权
-            if filter_zero_diff:
-                where_conditions.append("ot.volume_diff != 0")
+            # 🔥 新增：过滤变化量小于指定值的期权
+            if min_volume_diff and min_volume_diff.strip():
+                try:
+                    min_diff_value = int(min_volume_diff.strip())
+                    where_conditions.append("ABS(ot.volume_diff) >= ?")
+                    params.append(min_diff_value)
+                except ValueError:
+                    pass  # 忽略无效的数字输入
             
             where_clause = ""
             if where_conditions:
