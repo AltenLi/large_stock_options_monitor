@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 # -*- coding: utf-8 -*-
 """
 V2系统大单期权处理器 - 独立版本

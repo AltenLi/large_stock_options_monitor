@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 # -*- coding: utf-8 -*-
 """
 V2系统数据库浏览器启动脚本

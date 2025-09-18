@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 # -*- coding: utf-8 -*-
 """
 V2系统期权代码解析器 - 统一解析期权到期日、类型和行权价格

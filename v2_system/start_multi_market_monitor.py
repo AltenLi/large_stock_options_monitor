@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 # -*- coding: utf-8 -*-
 """
 多市场期权监控启动脚本

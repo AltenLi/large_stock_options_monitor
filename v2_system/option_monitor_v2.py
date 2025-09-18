@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 # -*- coding: utf-8 -*-
 """
 V2系统港股期权大单监控主程序 - 完全独立版本

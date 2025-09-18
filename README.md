@@ -1,6 +1,6 @@
 # 🚀 V2 多市场期权大单监控系统
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License](https://img.shields.io/badge/License-GPL%203.0%20or%20later-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-green.svg)](https://www.python.org/)
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)]()
 [![Markets](https://img.shields.io/badge/Markets-HK%20%7C%20US-orange.svg)]()
@@ -34,8 +34,8 @@
 - 💻 **现代化 UI** - 基于 Bootstrap 5 的响应式设计
 - 🌍 **多市场支持** - 统一界面管理港股和美股数据
   - 🏠 **多市场首页** - 同时显示港股和美股统计概览
-  - 🇭🇰 **港股专页** - `/stocks` 港股期权数据和统计
-  - 🇺🇸 **美股专页** - `/us_stocks` 美股期权数据和统计
+  - 🇭🇰 **港股专页** - `/stocks/HK` 港股期权数据和统计
+  - 🇺🇸 **美股专页** - `/stocks/US` 美股期权数据和统计
   - 🔄 **市场切换** - 便捷的导航栏市场切换功能
 - 💱 **货币显示** - 智能识别并显示对应货币单位（港币/美元）
 - 📊 **实时数据** - 股票统计、交易记录实时展示
@@ -58,6 +58,7 @@ V2 多市场期权监控系统
 ├── 🎯 核心监控模块
 │   ├── option_monitor_v2.py          # 通用监控引擎
 │   ├── start_us_monitor.py           # 美股专用启动器
+│   ├── start_hk_monitor.py           # 美股专用启动器
 │   └── start_multi_market_monitor.py # 多市场并行监控
 ├── 📊 数据处理层 (utils/)
 │   ├── database_manager.py           # 分市场数据库管理
@@ -70,7 +71,7 @@ V2 多市场期权监控系统
 │   ├── Flask 多市场 Web 应用
 │   ├── 分市场 RESTful API 接口
 │   ├── 🇭🇰 港股数据接口 (/stocks, /trades)
-│   ├── 🇺🇸 美股数据接口 (/us_stocks, /us_trades)
+│   ├── 🇺🇸 美股数据接口 (/stocks, /trades)
 │   └── 响应式多市场前端界面
 ├── 💾 分离式数据存储
 │   ├── 🇭🇰 data/hk_options_monitor_v2.db
@@ -142,7 +143,7 @@ NOTIFICATION = {
 #### 🇭🇰 **港股期权监控**
 ```bash
 # 启动港股期权监控程序
-python option_monitor_v2.py
+python start_hk_monitor.py
 
 # 启动 Web 界面 (新终端)
 python web_viewer.py
@@ -175,8 +176,8 @@ python web_viewer.py
 
 访问 Web 界面: http://localhost:5001
 - 🏠 **多市场首页**: `/` - 港股和美股统计概览
-- 🇭🇰 **港股数据**: `/stocks` - 港股期权统计和交易记录
-- 🇺🇸 **美股数据**: `/us_stocks` - 美股期权统计和交易记录
+- 🇭🇰 **港股数据**: `/stocks/HK`  `/trades/HK` - 港股期权统计和交易记录
+- 🇺🇸 **美股数据**: `/stocks/US`  `/trades/US` - 美股期权统计和交易记录
 
 ## 📊 功能详解
 
@@ -390,22 +391,23 @@ A: 1. 确认富途账户支持美股数据权限
 
 ## 📄 许可证
 
-本项目基于 **Apache License 2.0** 开源协议发布。
+本项目基于 **GNU General Public License v3.0 or later** 开源协议发布。
 
 ```
 Copyright 2025 V2 港股期权监控系统
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    http://www.apache.org/licenses/LICENSE-2.0
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ```
 
 详细许可证内容请查看 [LICENSE](LICENSE) 文件。
