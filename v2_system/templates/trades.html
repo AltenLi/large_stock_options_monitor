@@ -40,12 +40,12 @@
 <div class="filter-form">
     <form method="GET" action="{{ url_for('trades', market=market) }}">
         <div class="row">
-            <div class="col-md-3 mb-3">
+            <div class="col-md-2 mb-3">
                 <label for="stock_code" class="form-label">股票代码</label>
                 <input type="text" class="form-control" id="stock_code" name="stock_code" 
                        value="{{ filters.stock_code }}" placeholder="{% if market == 'US' %}如: US.AAPL{% else %}如: HK.00700{% endif %}">
             </div>
-            <div class="col-md-3 mb-3">
+            <div class="col-md-2 mb-3">
                 <label for="option_code" class="form-label">期权代码</label>
                 <input type="text" class="form-control" id="option_code" name="option_code" 
                        value="{{ filters.option_code }}" placeholder="如: HK.TCH">
@@ -59,6 +59,16 @@
                 <label for="date_to" class="form-label">结束日期</label>
                 <input type="date" class="form-control" id="date_to" name="date_to" 
                        value="{{ filters.date_to }}">
+            </div>
+            <div class="col-md-2 mb-3">
+                <label for="filter_zero_diff" class="form-label">过滤选项</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="filter_zero_diff" name="filter_zero_diff" 
+                           value="true" {% if filters.filter_zero_diff %}checked{% endif %}>
+                    <label class="form-check-label" for="filter_zero_diff">
+                        <small>过滤变化量为0的期权</small>
+                    </label>
+                </div>
             </div>
             <div class="col-md-2 mb-3">
                 <label class="form-label">&nbsp;</label>
