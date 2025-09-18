@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: GPL-3.0-or-later
 # -*- coding: utf-8 -*-
 """
+large_stock_options_monitor
+Copyright (C) 2025 AltenLi
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
 多市场期权监控启动脚本
 同时支持港股和美股期权大单监控
 """

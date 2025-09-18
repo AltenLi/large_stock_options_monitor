@@ -1,4 +1,12 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
+"""
+large_stock_options_monitor
+Copyright (C) 2025 AltenLi
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+"""
 # -*- coding: utf-8 -*-
 """
 V2系统港股期权大单监控主程序 - 完全独立版本
