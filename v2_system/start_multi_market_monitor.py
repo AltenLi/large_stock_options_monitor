@@ -64,15 +64,24 @@ class MultiMarketMonitor:
         self.last_api_call = {}  # 每个市场的上次API调用时间
         self.min_api_interval = 5  # API调用最小间隔(秒)
         
-        # 监控配置
-        self.hk_enabled = len(HK_MONITOR_STOCKS) > 0 and should_update_data_off_hours('HK')
-        self.us_enabled = len(US_MONITOR_STOCKS) > 0 and should_update_data_off_hours('US')
+        # 🔥 修改：监控配置 - 只要有股票就启用，不管调试开关
+        self.hk_enabled = len(HK_MONITOR_STOCKS) > 0
+        self.us_enabled = len(US_MONITOR_STOCKS) > 0
         
         self.logger.info(f"监控配置 - 港股: {'启用' if self.hk_enabled else '禁用'}, 美股: {'启用' if self.us_enabled else '禁用'}")
-        if len(HK_MONITOR_STOCKS) > 0 and not should_update_data_off_hours('HK'):
-            self.logger.info("港股监控已禁用：非交易时间调试开关已关闭")
-        if len(US_MONITOR_STOCKS) > 0 and not should_update_data_off_hours('US'):
-            self.logger.info("美股监控已禁用：非交易时间调试开关已关闭")
+        
+        # 显示调试开关状态，但不影响启用状态
+        if self.hk_enabled:
+            if should_update_data_off_hours('HK'):
+                self.logger.info("港股：非交易时间调试开关已开启，休市时也会监控")
+            else:
+                self.logger.info("港股：非交易时间调试开关已关闭，休市时将等待开市")
+        
+        if self.us_enabled:
+            if should_update_data_off_hours('US'):
+                self.logger.info("美股：非交易时间调试开关已开启，休市时也会监控")
+            else:
+                self.logger.info("美股：非交易时间调试开关已关闭，休市时将等待开市")
         
     def register_market(self, market: str):
         """注册活跃市场"""
@@ -203,7 +212,8 @@ class MultiMarketMonitor:
                         else:
                             self.logger.warning("⚠️ 港股监控未能获取API权限，跳过本次扫描")
                     else:
-                        self.logger.info("🔒 港股非交易时间且调试开关已关闭，跳过数据更新")
+                        # 🔥 新增：港股休市时的等待逻辑
+                        self.logger.info("🔒 港股非交易时间且调试开关已关闭，等待开市...")
                         # 港股跳过时，需要切换API权限给其他市场
                         if len(self.active_markets) > 1:
                             with self.market_turn_lock:
@@ -278,7 +288,8 @@ class MultiMarketMonitor:
                         else:
                             self.logger.warning("⚠️ 美股监控未能获取API权限，跳过本次扫描")
                     else:
-                        self.logger.info("🔒 美股非交易时间且调试开关已关闭，跳过数据更新")
+                        # 🔥 新增：美股休市时的等待逻辑
+                        self.logger.info("🔒 美股非交易时间且调试开关已关闭，等待开市...")
                         # 美股跳过时，需要切换API权限给其他市场
                         if len(self.active_markets) > 1:
                             with self.market_turn_lock:
@@ -341,12 +352,32 @@ class MultiMarketMonitor:
                 # 每10分钟输出一次状态
                 time.sleep(600)
                 
+                # 🔥 新增：检查所有市场的交易状态
+                hk_trading = is_hk_trading_time() if self.hk_enabled else False
+                us_trading = is_us_trading_time() if self.us_enabled else False
+                hk_should_monitor = should_monitor_market('HK') if self.hk_enabled else False
+                us_should_monitor = should_monitor_market('US') if self.us_enabled else False
+                
+                # 判断是否有任何市场在交易或应该监控
+                any_market_active = (hk_trading or hk_should_monitor) or (us_trading or us_should_monitor)
+                
                 status_info = []
                 for market, thread in threads:
                     status = "运行中" if thread.is_alive() else "已停止"
-                    status_info.append(f"{market}: {status}")
+                    
+                    # 添加市场状态信息
+                    if market == 'HK':
+                        market_status = "交易中" if hk_trading else ("监控中" if hk_should_monitor else "休市")
+                    else:  # US
+                        market_status = "交易中" if us_trading else ("监控中" if us_should_monitor else "休市")
+                    
+                    status_info.append(f"{market}: {status} ({market_status})")
                 
-                self.logger.info(f"📊 监控状态 - {', '.join(status_info)}")
+                if any_market_active:
+                    self.logger.info(f"📊 监控状态 - {', '.join(status_info)}")
+                else:
+                    self.logger.info(f"💤 所有市场休市中 - {', '.join(status_info)}")
+                    self.logger.info("⏰ 系统继续运行，等待市场开市...")
                 
                 # 检查线程是否还活着，如果死了就重启
                 for i, (market, thread) in enumerate(threads):
@@ -405,14 +436,40 @@ def main():
             logger.error("❌ 没有启用任何市场监控，请检查配置")
             return
         
-        # 检查当前交易时间
+        # 检查当前交易时间和监控状态
         if hk_enabled:
             hk_trading = is_hk_trading_time()
-            logger.info(f"  🇭🇰 港股: {'交易中' if hk_trading else '休市'}")
+            hk_should_monitor = should_monitor_market('HK')
+            if hk_trading:
+                logger.info(f"  🇭🇰 港股: 交易中 ✅")
+            elif hk_should_monitor:
+                logger.info(f"  🇭🇰 港股: 休市但继续监控 ⏰")
+            else:
+                logger.info(f"  🇭🇰 港股: 休市且等待开市 💤")
         
         if us_enabled:
             us_trading = is_us_trading_time()
-            logger.info(f"  🇺🇸 美股: {'交易中' if us_trading else '休市'}")
+            us_should_monitor = should_monitor_market('US')
+            if us_trading:
+                logger.info(f"  🇺🇸 美股: 交易中 ✅")
+            elif us_should_monitor:
+                logger.info(f"  🇺🇸 美股: 休市但继续监控 ⏰")
+            else:
+                logger.info(f"  🇺🇸 美股: 休市且等待开市 💤")
+        
+        # 🔥 修改：即使所有市场都休市，也要启动系统等待开市
+        any_market_active = False
+        if hk_enabled:
+            any_market_active = any_market_active or hk_trading or hk_should_monitor
+        if us_enabled:
+            any_market_active = any_market_active or us_trading or us_should_monitor
+        
+        if not any_market_active and (hk_enabled or us_enabled):
+            logger.info("💤 当前所有市场都休市，系统将循环等待开市...")
+            logger.info("🔄 监控线程将启动并等待市场开市")
+        elif any_market_active:
+            logger.info("✅ 有市场正在交易或需要监控，系统正常运行")
+        # 如果没有启用任何市场，后面会报错退出
         
         # 创建并启动多市场监控
         monitor = MultiMarketMonitor()
