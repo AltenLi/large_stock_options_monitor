@@ -25,7 +25,7 @@ sys.path.append(current_dir)
 
 from option_monitor_v2 import V2OptionMonitor
 from config import (
-    US_MONITOR_STOCKS, 
+    get_monitor_stocks,
     is_us_trading_time,
     get_market_type,
     should_monitor_market,
@@ -34,7 +34,7 @@ from config import (
 )
 
 # 为了兼容性，创建别名
-US_STOCK_CODES = US_MONITOR_STOCKS
+US_STOCK_CODES = get_monitor_stocks('US')
 
 def setup_logging():
     """设置日志"""

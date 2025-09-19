@@ -27,8 +27,7 @@ sys.path.append(current_dir)
 
 from option_monitor_v2 import V2OptionMonitor
 from config import (
-    HK_MONITOR_STOCKS, 
-    US_MONITOR_STOCKS,
+    get_monitor_stocks,
     is_hk_trading_time,
     is_us_trading_time,
     get_market_type,
@@ -73,8 +72,8 @@ class MultiMarketMonitor:
         self.min_api_interval = 5  # API调用最小间隔(秒)
         
         # 🔥 修改：监控配置 - 只要有股票就启用，不管调试开关
-        self.hk_enabled = len(HK_MONITOR_STOCKS) > 0
-        self.us_enabled = len(US_MONITOR_STOCKS) > 0
+        self.hk_enabled = len(get_monitor_stocks('HK')) > 0
+        self.us_enabled = len(get_monitor_stocks('US')) > 0
         
         self.logger.info(f"监控配置 - 港股: {'启用' if self.hk_enabled else '禁用'}, 美股: {'启用' if self.us_enabled else '禁用'}")
         
@@ -182,7 +181,7 @@ class MultiMarketMonitor:
         try:
             self.logger.info("🇭🇰 启动港股期权监控线程")
             self.hk_monitor = V2OptionMonitor(market='HK')
-            self.logger.info(f"📋 港股监控列表: {len(HK_MONITOR_STOCKS)} 只股票")
+            self.logger.info(f"📋 港股监控列表: {len(get_monitor_stocks('HK'))} 只股票")
             
             # 注册港股市场
             self.register_market('HK')
@@ -253,7 +252,7 @@ class MultiMarketMonitor:
         try:
             self.logger.info("🇺🇸 启动美股期权监控线程")
             self.us_monitor = V2OptionMonitor(market='US')
-            self.logger.info(f"📋 美股监控列表: {len(US_MONITOR_STOCKS)} 只股票")
+            self.logger.info(f"📋 美股监控列表: {len(get_monitor_stocks('US'))} 只股票")
             
             # 注册美股市场
             self.register_market('US')
@@ -416,19 +415,21 @@ def main():
     try:
         # 显示监控配置
         logger.info("📊 监控配置:")
-        hk_enabled = len(HK_MONITOR_STOCKS) > 0
-        us_enabled = len(US_MONITOR_STOCKS) > 0
+        hk_stocks = get_monitor_stocks('HK')
+        us_stocks = get_monitor_stocks('US')
+        hk_enabled = len(hk_stocks) > 0
+        us_enabled = len(us_stocks) > 0
         
         if hk_enabled:
-            logger.info(f"  🇭🇰 港股: {len(HK_MONITOR_STOCKS)} 只股票")
-            for stock_code in HK_MONITOR_STOCKS:
+            logger.info(f"  🇭🇰 港股: {len(hk_stocks)} 只股票")
+            for stock_code in hk_stocks:
                 logger.info(f"    - {stock_code}")
         else:
             logger.info("  🇭🇰 港股: 已禁用（无监控股票）")
         
         if us_enabled:
-            logger.info(f"  🇺🇸 美股: {len(US_MONITOR_STOCKS)} 只股票")
-            for stock_code in US_MONITOR_STOCKS:
+            logger.info(f"  🇺🇸 美股: {len(us_stocks)} 只股票")
+            for stock_code in us_stocks:
                 logger.info(f"    - {stock_code}")
         else:
             logger.info("  🇺🇸 美股: 已禁用（无监控股票）")

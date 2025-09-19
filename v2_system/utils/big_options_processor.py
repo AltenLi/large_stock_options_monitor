@@ -18,7 +18,7 @@ import sys
 
 # 添加V2系统路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import HK_TRADING_HOURS, US_TRADING_HOURS_DST, US_TRADING_HOURS_STD, OPTION_FILTERS, SYSTEM_CONFIG, get_stock_name, get_stock_default_price
+from config import HK_TRADING_HOURS, US_TRADING_HOURS_DST, US_TRADING_HOURS_STD, OPTION_FILTERS, SYSTEM_CONFIG, get_stock_name, get_stock_default_price, get_monitor_stocks
 from .data_utils import safe_int_convert, safe_float_convert, safe_str_convert
 import futu as ft
 
@@ -122,6 +122,21 @@ class BigOptionsProcessor:
         
         # 数据现在统一存储在数据库中，不再需要创建JSON文件目录
         # os.makedirs(os.path.dirname(self.json_file), exist_ok=True)
+    
+    def _get_filter_key(self, stock_code: str) -> str:
+        """根据股票代码获取对应的过滤器配置键"""
+        # 恒生指数期权
+        if stock_code == 'HK.800000':
+            return 'hsi_options'
+        # 科指期权
+        elif stock_code == 'HK.800700':
+            return 'hscei_options'
+        # 美股期权
+        elif self.market == 'US':
+            return 'us_default'
+        # 港股其他期权
+        else:
+            return 'hk_default'
     
     def _load_today_option_volumes(self) -> Dict[str, int]:
         """从SQL数据库加载当日期权成交量"""
@@ -531,11 +546,9 @@ class BigOptionsProcessor:
                         self.logger.info(f"V2 {stock_code}当前股价(使用默认价格): {current_price}")
                 
                 # 基于股价设定期权执行价格过滤范围
-                # 根据市场类型选择对应的过滤器
-                if market_type == 'US':
-                    price_range = OPTION_FILTERS['us_default'].get('price_range', 0.4)
-                else:
-                    price_range = OPTION_FILTERS['hk_default'].get('price_range', 0.4)
+                # 根据股票代码选择对应的过滤器
+                filter_key = self._get_filter_key(stock_code)
+                price_range = OPTION_FILTERS[filter_key].get('price_range', 0.4)
                 price_lower = current_price * (1 - price_range)
                 price_upper = current_price * (1 + price_range)
                 self.logger.info(f"V2筛选价格范围: {price_lower:.2f} - {price_upper:.2f} (±{price_range*100}%)")
@@ -859,12 +872,13 @@ class BigOptionsProcessor:
             # 🔥 新逻辑：从所有期权数据中筛选出大单和有变化的期权
             for trade_info in all_options_data:
                 option_code = trade_info['option_code']
+                stock_code = trade_info['stock_code']  # 从trade_info中获取stock_code
                 current_volume = trade_info['volume']
                 current_turnover = trade_info['turnover']
                 volume_diff = trade_info['volume_diff']
                 
-                # 检查是否满足大单条件 - 根据市场使用相应的过滤配置
-                filter_key = 'us_default' if self.market == 'US' else 'hk_default'
+                # 检查是否满足大单条件 - 根据股票代码使用相应的过滤配置
+                filter_key = self._get_filter_key(stock_code)
                 option_filter = OPTION_FILTERS[filter_key]
                 
                 # 🔥 修改大单判断逻辑：保持原有的变化量阈值判断

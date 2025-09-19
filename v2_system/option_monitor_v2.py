@@ -240,10 +240,10 @@ class V2OptionMonitor:
             
             # 根据市场选择对应的股票列表
             if self.market == 'HK':
-                monitor_stocks = HK_MONITOR_STOCKS
+                monitor_stocks = get_monitor_stocks('HK')
                 self.logger.info(f"V2系统港股监控，股票列表: {monitor_stocks}")
             elif self.market == 'US':
-                monitor_stocks = US_MONITOR_STOCKS
+                monitor_stocks = get_monitor_stocks('US')
                 self.logger.info(f"V2系统美股监控，股票列表: {monitor_stocks}")
             else:
                 self.logger.error(f"V2系统不支持的市场类型: {self.market}")

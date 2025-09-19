@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 # -*- coding: utf-8 -*-
 """
 V2系统独立配置文件
@@ -61,35 +62,36 @@ def get_database_config(market: str = 'HK') -> Dict[str, Any]:
 OPTION_FILTERS = {
     # 港股默认配置
     'hk_default': {
-        'min_volume': 50,           # 最小成交量
+        'min_volume': 500,           # 最小成交量
         'min_turnover': 300000,      # 最小成交额(港币)
-        'min_volume_diff': 80,       # 最小增量成交量(张)
-        'min_price': 0.001,         # 最小期权价格
-        'max_price': 30,          # 最大期权价格
-        'min_days_to_expiry': 1,    # 最小到期天数
-        'max_days_to_expiry': 365,  # 最大到期天数
-        'enable_call': True,        # 监控看涨期权
-        'enable_put': True,         # 监控看跌期权
-        'min_importance_score': 60, # 最小重要性分数
+        'min_volume_diff': 300,       # 最小增量成交量(张)
+        'price_range': 0.3,         # 价格范围
     },
     
     # 美股默认配置
     'us_default': {
-        'min_volume': 50,           # 最小成交量(美股期权成交量通常更大)
+        'min_volume': 500,           # 最小成交量(美股期权成交量通常更大)
         'min_turnover': 100000,      # 最小成交额(美元)
-        'min_volume_diff': 80,      # 最小增量成交量(张)
-        'min_price': 0.01,          # 最小期权价格
-        'max_price': 100,           # 最大期权价格
-        'min_days_to_expiry': 1,    # 最小到期天数
-        'max_days_to_expiry': 365,  # 最大到期天数
-        'enable_call': True,        # 监控看涨期权
-        'enable_put': True,         # 监控看跌期权
-        'min_importance_score': 60, # 最小重要性分数
+        'min_volume_diff': 300,      # 最小增量成交量(张)
+        'price_range': 0.3,         # 价格范围
     },
     
+    # 恒生指数期权配置
+    'hsi_options': {
+        'min_volume': 200,           # 恒指期权成交量相对较小
+        'min_turnover': 500000,      # 最小成交额(港币) - 恒指期权价值较高
+        'min_volume_diff': 100,      # 最小增量成交量(张)
+        'price_range': 0.2,         # 价格范围 - 恒指期权波动相对稳定
+    },
     
+    # 科指期权配置
+    'hscei_options': {
+        'min_volume': 150,           # 科指期权成交量通常更小
+        'min_turnover': 300000,      # 最小成交额(港币)
+        'min_volume_diff': 80,       # 最小增量成交量(张)
+        'price_range': 0.25,        # 价格范围
+    },
 }
-
 
 
 # ==================== 通知配置 ====================
@@ -98,7 +100,7 @@ NOTIFICATION = {
     'enable_console': True,
     
     # Mac系统通知
-    'enable_mac_notification': True,
+    'enable_mac_notification': False,
     
     # 邮件通知
     'enable_email': False,
@@ -113,19 +115,14 @@ NOTIFICATION = {
     # 企业微信机器人通知
     'enable_wework_bot': True,
     'wework_config': {
-        'webhook_url': 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xx',  # 主要webhook URL
+        'webhook_url': 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx',  # 主要webhook URL
         'extra_webhook_urls': [
             'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx'
         ],  # 额外的webhook URL列表
         'mentioned_list': [],  # @用户列表
         'mentioned_mobile_list': [],  # @手机号列表
         'enable_summary': True,  # 启用汇总通知
-        'summary_interval': 300,  # 汇总间隔(秒)
     },
-    
-    # 通知频率控制
-    'notification_interval': 60,  # 同一期权通知间隔(秒)
-    'max_notifications_per_hour': 100,  # 每小时最大通知数
 }
 
 # ==================== 交易时间配置 ====================
@@ -137,7 +134,7 @@ HK_TRADING_HOURS = {
     'lunch_break_end': '13:00',
     'timezone': 'Asia/Hong_Kong',
     'weekdays_only': True,  # 只在工作日开市
-    'update_data_off_hours': True,  # 非开市时间是否更新数据 (调试开关)
+    'update_data_off_hours': False,  # 非开市时间是否更新数据 (调试开关)
 }
 
 # 美股交易时间 (夏令时)
@@ -165,7 +162,7 @@ US_TRADING_HOURS_STD = {
 # ==================== 系统配置 ====================
 SYSTEM_CONFIG = {
     # 日志配置
-    'log_level': 'INFO',
+    'log_level': 'DEBUG',
     'log_file': 'logs/option_monitor_v2.log',
     'log_max_size': 50 * 1024 * 1024,  # 50MB
     'log_backup_count': 5,
@@ -195,84 +192,86 @@ SYSTEM_CONFIG = {
     'price_cache': 'data/price_cache_v2.json',
 }
 
-# ==================== 股票默认价格配置 ====================
-STOCK_DEFAULT_PRICE = {
-    # 港股默认价格
-    'HK.00700': 647.0,  # 腾讯控股
-    'HK.09988': 154.0,   # 阿里巴巴-SW
-    'HK.03690': 98.0,  # 美团
-    'HK.09888': 112.0,  # 百度
-    'HK.01810': 56.0,   # 小米集团
-    'HK.09618': 130.0,  # 京东集团
-    'HK.02318': 56.0,   # 中国平安
-    'HK.00388': 451.0,  # 香港交易所
-    'HK.00981': 63.0,   # 中芯国际
-    'HK.02020': 95.0,   # 安踏体育
-    'HK.01024': 76.0,   # 快手
-    'HK.03750': 478.0,  # 宁德时代
-    'HK.01347': 52.0,   # 华虹半导体
-    'HK.09626': 213.0,  # 哔哩哔哩-W
-    'HK.02269': 39.0,   # 药明康德
-    'HK.02015': 100.0,  # 理想汽车-W
+# ==================== 股票配置统一管理 ====================
+STOCK_CONFIG = {
+    # 港股配置
+    'HK.00700': {'name': '腾讯控股', 'default_price': 647.0, 'monitor': True},
+    'HK.09988': {'name': '阿里巴巴', 'default_price': 154.0, 'monitor': True},
+    'HK.03690': {'name': '美团', 'default_price': 98.0, 'monitor': True},
+    'HK.09888': {'name': '百度', 'default_price': 112.0, 'monitor': True},
+    'HK.01810': {'name': '小米集团', 'default_price': 56.0, 'monitor': True},
+    'HK.09618': {'name': '京东集团', 'default_price': 130.0, 'monitor': True},
+    'HK.02318': {'name': '中国平安', 'default_price': 56.0, 'monitor': True},
+    'HK.00388': {'name': '香港交易所', 'default_price': 451.0, 'monitor': True},
+    'HK.00981': {'name': '中芯国际', 'default_price': 63.0, 'monitor': True},
+    'HK.02020': {'name': '安踏体育', 'default_price': 95.0, 'monitor': True},
+    'HK.01024': {'name': '快手', 'default_price': 76.0, 'monitor': True},
+    'HK.03750': {'name': '宁德时代', 'default_price': 478.0, 'monitor': True},
+    'HK.01347': {'name': '华虹半导体', 'default_price': 52.0, 'monitor': True},
+    'HK.09626': {'name': '哔哩哔哩-W', 'default_price': 213.0, 'monitor': True},
+    'HK.02269': {'name': '药明生物', 'default_price': 39.0, 'monitor': True},
+    'HK.02015': {'name': '理想汽车-W', 'default_price': 100.0, 'monitor': True},
+    'HK.800000': {'name': '恒指', 'default_price': 26575, 'monitor': True},
+    'HK.800700': {'name': '科指', 'default_price': 6335, 'monitor': True},
     
-    # 美股默认价格
-    'US.AAPL': 237.0,   # 苹果
-    'US.MSFT': 515.0,   # 微软
-    'US.GOOGL': 252.0,  # 谷歌
-    'US.AMZN': 231.0,   # 亚马逊
-    'US.TSLA': 410.0,   # 特斯拉
-    'US.META': 764.0,   # Meta
-    'US.NVDA': 177.0,   # 英伟达
-    'US.NFLX': 1202.0,   # 奈飞
-    'US.AMD': 161.0,    # AMD
-    'US.CRM': 242.0,    # Salesforce
-    'US.QS': 10.0,    # Salesforce
-    
-    # 通用默认价格
-    'default': 100.0,   # 未配置股票的默认价格
+    # 美股配置
+    'US.AAPL': {'name': '苹果', 'default_price': 237.0, 'monitor': True},
+    'US.MSFT': {'name': '微软', 'default_price': 515.0, 'monitor': True},
+    'US.GOOGL': {'name': '谷歌', 'default_price': 252.0, 'monitor': True},
+    'US.AMZN': {'name': '亚马逊', 'default_price': 231.0, 'monitor': True},
+    'US.TSLA': {'name': '特斯拉', 'default_price': 410.0, 'monitor': True},
+    'US.META': {'name': 'Meta', 'default_price': 764.0, 'monitor': True},
+    'US.NVDA': {'name': '英伟达', 'default_price': 177.0, 'monitor': True},
+    'US.NFLX': {'name': '奈飞', 'default_price': 1202.0, 'monitor': True},
+    'US.AMD': {'name': 'AMD', 'default_price': 161.0, 'monitor': True},
+    'US.CRM': {'name': 'Salesforce', 'default_price': 242.0, 'monitor': True},
+    'US.QS': {'name': 'QuantumScape', 'default_price': 10.0, 'monitor': False},  # 不监控但有配置
 }
+
+# 默认配置
+DEFAULT_STOCK_CONFIG = {
+    'name': 'Unknown',
+    'default_price': 100.0,
+    'monitor': False
+}
+
+# ==================== 辅助函数 ====================
+def get_stock_config(stock_code: str) -> Dict[str, Any]:
+    """获取股票完整配置"""
+    return STOCK_CONFIG.get(stock_code, DEFAULT_STOCK_CONFIG.copy())
 
 def get_stock_default_price(stock_code: str) -> float:
     """获取股票默认价格"""
-    return STOCK_DEFAULT_PRICE.get(stock_code, STOCK_DEFAULT_PRICE['default'])
+    config = get_stock_config(stock_code)
+    return config['default_price']
 
-# ==================== 监控股票配置 ====================
-# 港股监控列表
-HK_MONITOR_STOCKS = [
-    'HK.00700',  # 腾讯控股
-    'HK.09988',  # 阿里巴巴
-    'HK.03690',  # 美团
-    'HK.09888',  # 百度
-    'HK.01810',  # 小米集团
-    'HK.09618',  # 京东集团
-    'HK.02318',  # 中国平安
-    'HK.00388',  # 香港交易所
-    'HK.00981',  # 中芯国际
-    'HK.02020',  # 安踏体育
-    'HK.01024',  # 快手
-    'HK.03750',  # 宁德时代,
-    'HK.01347',  # 华虹半导体
-    'HK.09626',  # 哔哩哔哩-W
-    'HK.02269',  # 药明康德
-    'HK.02015',  # 理想汽车-W
-]
+def get_stock_name(stock_code: str) -> str:
+    """获取股票名称"""
+    config = get_stock_config(stock_code)
+    return config['name']
 
-# 美股监控列表
-US_MONITOR_STOCKS = [
-    'US.AAPL',   # 苹果
-    'US.MSFT',   # 微软
-    'US.GOOGL',  # 谷歌
-    'US.AMZN',   # 亚马逊
-    'US.TSLA',   # 特斯拉
-    'US.META',   # Meta
-    'US.NVDA',   # 英伟达
-    'US.NFLX',   # 奈飞
-    'US.AMD',    # AMD
-    'US.CRM',    # Salesforce
-]
+def is_stock_monitored(stock_code: str) -> bool:
+    """判断股票是否需要监控"""
+    config = get_stock_config(stock_code)
+    return config['monitor']
 
+def get_monitor_stocks(market: str = None) -> List[str]:
+    """获取监控股票列表"""
+    monitor_stocks = []
+    for stock_code, config in STOCK_CONFIG.items():
+        if config['monitor']:
+            if market is None:
+                monitor_stocks.append(stock_code)
+            elif market == 'HK' and stock_code.startswith('HK.'):
+                monitor_stocks.append(stock_code)
+            elif market == 'US' and stock_code.startswith('US.'):
+                monitor_stocks.append(stock_code)
+    return monitor_stocks
 
-# ==================== 辅助函数 ====================
+# 为了向后兼容，保留原有的变量名
+HK_MONITOR_STOCKS = get_monitor_stocks('HK')
+US_MONITOR_STOCKS = get_monitor_stocks('US')
+
 def get_market_type(stock_code: str) -> str:
     """根据股票代码判断市场类型"""
     if stock_code.startswith('HK.'):
@@ -282,41 +281,6 @@ def get_market_type(stock_code: str) -> str:
     else:
         # 默认返回港股
         return 'HK'
-
-def get_stock_name(stock_code: str) -> str:
-    """获取股票名称"""
-    stock_names = {
-        # 港股
-        'HK.00700': '腾讯控股',
-        'HK.09988': '阿里巴巴',
-        'HK.03690': '美团',
-        'HK.09888': '百度',
-        'HK.01810': '小米集团',
-        'HK.09618': '京东集团',
-        'HK.02318': '中国平安',
-        'HK.00388': '香港交易所',
-        'HK.00981': '中芯国际',
-        'HK.02020': '安踏体育',
-        'HK.01024': '快手',
-        'HK.03750': '宁德时代',
-        'HK.01347': '华虹半导体',
-        'HK.09626': '哔哩哔哩-W',
-        'HK.02269': '药明康德',
-        'HK.02015': '理想汽车-W',
-        
-        # 美股
-        'US.AAPL': '苹果',
-        'US.MSFT': '微软',
-        'US.GOOGL': '谷歌',
-        'US.AMZN': '亚马逊',
-        'US.TSLA': '特斯拉',
-        'US.META': 'Meta',
-        'US.NVDA': '英伟达',
-        'US.NFLX': '奈飞',
-        'US.AMD': 'AMD',
-        'US.CRM': 'Salesforce',
-    }
-    return stock_names.get(stock_code, stock_code)
 
 def get_market_from_code(stock_code: str) -> str:
     """从股票代码获取市场类型"""
