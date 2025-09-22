@@ -51,6 +51,13 @@ def get_market_open_time(market='HK'):
             return US_TRADING_HOURS_STD['market_open'] + ':00'
     return '09:30:00'
 
+def get_last_trading_day(base_date):
+    """获取指定日期之前的最近一个交易日（工作日）"""
+    date = base_date
+    while date.weekday() >= 5:  # 周六(5)或周日(6)
+        date -= timedelta(days=1)
+    return date
+
 def get_trading_dates(market='HK'):
     """根据市场和当前时间获取统计日期和对比日期
     复用config中的交易时间判断逻辑
@@ -75,14 +82,19 @@ def get_trading_dates(market='HK'):
         if is_trading_day:
             # 在交易日内（包括午休时间）：显示当日数据
             current_date = now.strftime('%Y-%m-%d')
-            compare_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+            # 对比日期：昨天，如果昨天是周末则取上周五
+            compare_date_obj = get_last_trading_day(now - timedelta(days=1))
+            compare_date = compare_date_obj.strftime('%Y-%m-%d')
         else:
             # 真正的开盘前或收盘后：显示上一交易日数据
-            current_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
-            compare_date = (now - timedelta(days=2)).strftime('%Y-%m-%d')
+            current_date_obj = get_last_trading_day(now - timedelta(days=1))
+            current_date = current_date_obj.strftime('%Y-%m-%d')
+            # 对比日期：上一交易日的前一个交易日
+            compare_date_obj = get_last_trading_day(current_date_obj - timedelta(days=1))
+            compare_date = compare_date_obj.strftime('%Y-%m-%d')
             
     elif market == 'US':
-        # 美股处理逻辑保持不变
+        # 美股处理逻辑，同样添加工作日判断
         if is_trading:
             # 美股跨日处理：根据夏令时/冬令时获取收盘时间
             if is_us_dst():
@@ -92,11 +104,14 @@ def get_trading_dates(market='HK'):
             
             # 如果当前时间在收盘时间前（次日凌晨），算作前一天的交易
             if now.time() <= datetime.strptime(market_close, '%H:%M').time():
-                current_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
-                compare_date = (now - timedelta(days=2)).strftime('%Y-%m-%d')
+                current_date_obj = get_last_trading_day(now - timedelta(days=1))
+                current_date = current_date_obj.strftime('%Y-%m-%d')
+                compare_date_obj = get_last_trading_day(current_date_obj - timedelta(days=1))
+                compare_date = compare_date_obj.strftime('%Y-%m-%d')
             else:
                 current_date = now.strftime('%Y-%m-%d')
-                compare_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+                compare_date_obj = get_last_trading_day(now - timedelta(days=1))
+                compare_date = compare_date_obj.strftime('%Y-%m-%d')
         else:
             # 美股：根据当前时间判断
             if is_us_dst():
@@ -105,15 +120,20 @@ def get_trading_dates(market='HK'):
                 market_open = US_TRADING_HOURS_STD['market_open']
             
             if now.time() <= datetime.strptime(market_open, '%H:%M').time():
-                current_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
-                compare_date = (now - timedelta(days=2)).strftime('%Y-%m-%d')
+                current_date_obj = get_last_trading_day(now - timedelta(days=1))
+                current_date = current_date_obj.strftime('%Y-%m-%d')
+                compare_date_obj = get_last_trading_day(current_date_obj - timedelta(days=1))
+                compare_date = compare_date_obj.strftime('%Y-%m-%d')
             else:
-                current_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
-                compare_date = (now - timedelta(days=2)).strftime('%Y-%m-%d')
+                current_date_obj = get_last_trading_day(now - timedelta(days=1))
+                current_date = current_date_obj.strftime('%Y-%m-%d')
+                compare_date_obj = get_last_trading_day(current_date_obj - timedelta(days=1))
+                compare_date = compare_date_obj.strftime('%Y-%m-%d')
     else:
-        # 其他市场默认处理
+        # 其他市场默认处理，也添加工作日判断
         current_date = now.strftime('%Y-%m-%d')
-        compare_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+        compare_date_obj = get_last_trading_day(now - timedelta(days=1))
+        compare_date = compare_date_obj.strftime('%Y-%m-%d')
     
     return current_date, compare_date, is_trading
 
