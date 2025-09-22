@@ -134,7 +134,16 @@
                             {% set total_net_abs = call_net_abs + put_net_abs %}
                             {% if total_net_abs > 0 %}
                                 {% set call_ratio = (call_net_abs / total_net_abs * 100)|round(1) %}
-                                <span class="text-info">{{ call_ratio }}%</span>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar {{ 'bg-success' if call_ratio >= 50 else 'bg-danger' }}" 
+                                         role="progressbar" 
+                                         style="width: {{ call_ratio }}%;" 
+                                         aria-valuenow="{{ call_ratio }}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                        <small class="text-white fw-bold">{{ call_ratio }}%</small>
+                                    </div>
+                                </div>
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
@@ -168,7 +177,16 @@
                             {% set total_oi = stock.call_data.total_open_interest + stock.put_data.total_open_interest %}
                             {% if total_oi > 0 %}
                                 {% set call_oi_ratio = (stock.call_data.total_open_interest / total_oi * 100)|round(1) %}
-                                <span class="text-info">{{ call_oi_ratio }}%</span>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar {{ 'bg-success' if call_oi_ratio >= 50 else 'bg-danger' }}" 
+                                         role="progressbar" 
+                                         style="width: {{ call_oi_ratio }}%;" 
+                                         aria-valuenow="{{ call_oi_ratio }}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                        <small class="text-white fw-bold">{{ call_oi_ratio }}%</small>
+                                    </div>
+                                </div>
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
@@ -202,7 +220,16 @@
                             {% set total_trades = stock.call_data.trade_count + stock.put_data.trade_count %}
                             {% if total_trades > 0 %}
                                 {% set call_trade_ratio = (stock.call_data.trade_count / total_trades * 100)|round(1) %}
-                                <span class="text-info">{{ call_trade_ratio }}%</span>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar {{ 'bg-success' if call_trade_ratio >= 50 else 'bg-danger' }}" 
+                                         role="progressbar" 
+                                         style="width: {{ call_trade_ratio }}%;" 
+                                         aria-valuenow="{{ call_trade_ratio }}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                        <small class="text-white fw-bold">{{ call_trade_ratio }}%</small>
+                                    </div>
+                                </div>
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
@@ -260,7 +287,16 @@
                             {% set total_turnover = stock.call_data.total_turnover + stock.put_data.total_turnover %}
                             {% if total_turnover > 0 %}
                                 {% set call_turnover_ratio = (stock.call_data.total_turnover / total_turnover * 100)|round(1) %}
-                                <span class="text-info">{{ call_turnover_ratio }}%</span>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar {{ 'bg-success' if call_turnover_ratio >= 50 else 'bg-danger' }}" 
+                                         role="progressbar" 
+                                         style="width: {{ call_turnover_ratio }}%;" 
+                                         aria-valuenow="{{ call_turnover_ratio }}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                        <small class="text-white fw-bold">{{ call_turnover_ratio }}%</small>
+                                    </div>
+                                </div>
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}

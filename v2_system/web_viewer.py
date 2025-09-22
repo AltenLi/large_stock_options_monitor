@@ -60,10 +60,30 @@ def get_trading_dates(market='HK'):
     
     now = datetime.now()
     is_trading = is_market_trading_time(market)
+    current_time = now.strftime('%H:%M')
     
-    if is_trading:
-        # 开盘中：显示当日数据，对比上一交易日
-        if market == 'US':
+    if market == 'HK':
+        # 港股特殊处理：区分真正的开盘前和午休时间
+        market_open = HK_TRADING_HOURS['market_open']
+        market_close = HK_TRADING_HOURS['market_close']
+        lunch_start = HK_TRADING_HOURS['lunch_break_start']
+        lunch_end = HK_TRADING_HOURS['lunch_break_end']
+        
+        # 判断是否在交易日内（开盘到收盘之间，包括午休）
+        is_trading_day = (now.weekday() < 5 and market_open <= current_time < market_close)
+        
+        if is_trading_day:
+            # 在交易日内（包括午休时间）：显示当日数据
+            current_date = now.strftime('%Y-%m-%d')
+            compare_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+        else:
+            # 真正的开盘前或收盘后：显示上一交易日数据
+            current_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+            compare_date = (now - timedelta(days=2)).strftime('%Y-%m-%d')
+            
+    elif market == 'US':
+        # 美股处理逻辑保持不变
+        if is_trading:
             # 美股跨日处理：根据夏令时/冬令时获取收盘时间
             if is_us_dst():
                 market_close = US_TRADING_HOURS_DST['market_close']
@@ -78,12 +98,6 @@ def get_trading_dates(market='HK'):
                 current_date = now.strftime('%Y-%m-%d')
                 compare_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
         else:
-            # 港股正常处理
-            current_date = now.strftime('%Y-%m-%d')
-            compare_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
-    else:
-        # 开盘前：显示上一交易日数据，对比上上交易日
-        if market == 'US':
             # 美股：根据当前时间判断
             if is_us_dst():
                 market_open = US_TRADING_HOURS_DST['market_open']
@@ -96,10 +110,10 @@ def get_trading_dates(market='HK'):
             else:
                 current_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
                 compare_date = (now - timedelta(days=2)).strftime('%Y-%m-%d')
-        else:
-            # 港股：显示昨天的数据
-            current_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
-            compare_date = (now - timedelta(days=2)).strftime('%Y-%m-%d')
+    else:
+        # 其他市场默认处理
+        current_date = now.strftime('%Y-%m-%d')
+        compare_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
     
     return current_date, compare_date, is_trading
 
