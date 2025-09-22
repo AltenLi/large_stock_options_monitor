@@ -58,6 +58,11 @@
                             <i class="bi bi-bar-chart"></i> 股票统计
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('options_comparison', market=(market if market is defined and market else 'HK')) }}">
+                            <i class="bi bi-arrow-left-right"></i> 期权对比
+                        </a>
+                    </li>
                 </ul>
                 <span class="navbar-text">
                     <i class="bi bi-clock"></i> <span id="current-time"></span>

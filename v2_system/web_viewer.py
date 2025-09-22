@@ -202,6 +202,30 @@ def api_stocks(market='HK'):
     except Exception as e:
         return jsonify({'error': str(e)})
 
+@app.route('/options_comparison')
+@app.route('/options_comparison/<market>')
+def options_comparison(market='HK'):
+    """期权Call和Put对比页面"""
+    try:
+        comparison_data = get_options_comparison_data(market)
+        return render_template('options_comparison.html', 
+                             stocks=comparison_data,
+                             market=market,
+                             market_name='港股' if market == 'HK' else '美股',
+                             currency='港币' if market == 'HK' else '美元')
+    except Exception as e:
+        return f"错误: {str(e)}"
+
+@app.route('/api/options_comparison')
+@app.route('/api/options_comparison/<market>')
+def api_options_comparison(market='HK'):
+    """API - 获取期权Call和Put对比数据"""
+    try:
+        comparison_data = get_options_comparison_data(market)
+        return jsonify(comparison_data)
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
 # 美股专用路由
 @app.route('/us_stocks')
 def us_stocks():
@@ -369,6 +393,183 @@ def get_trades_data(market='HK', page=1, per_page=50, stock_code='', option_code
         print(f"获取{market}市场交易数据失败: {e}")
         return {'trades': [], 'pagination': {}}
 
+def get_options_comparison_data(market='HK'):
+    """获取期权Call和Put对比数据
+    每个股票显示Call和Put的总成交额、持仓和净持仓
+    只使用最近一次开盘后的数据，每个期权代码只取最新信息
+    """
+    try:
+        db_manager = get_db_manager(market)
+        with sqlite3.connect(db_manager.db_path) as conn:
+            cursor = conn.cursor()
+            
+            # 根据市场和当前时间确定统计日期
+            current_date, _, is_trading = get_trading_dates(market)
+            
+            # 根据是否在交易时间调整查询条件
+            if is_trading:
+                # 开盘后：查询当日开盘至今的数据
+                time_condition = "DATE(ot.timestamp) = ? AND TIME(ot.timestamp) >= ?"
+                market_open_time = get_market_open_time(market)
+                query_params = [current_date, market_open_time]
+            else:
+                # 开盘前：查询完整交易日数据
+                time_condition = "DATE(ot.timestamp) = ?"
+                query_params = [current_date]
+            
+            print(f"[DEBUG] 期权对比查询 - 市场: {market}, 日期: {current_date}, 交易中: {is_trading}")
+            print(f"[DEBUG] 查询参数: {query_params}")
+            
+            # 查询每个股票的Call和Put期权数据
+            query_sql = f"""
+                WITH latest_records AS (
+                    SELECT 
+                        ot.stock_code,
+                        ot.option_code,
+                        ot.option_type,
+                        ot.volume,
+                        ot.turnover,
+                        ot.price,
+                        ot.timestamp,
+                        ot.option_open_interest,
+                        ot.option_net_open_interest,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY ot.option_code 
+                            ORDER BY ot.timestamp DESC
+                        ) as rn
+                    FROM option_trades ot
+                    WHERE {time_condition}
+                ),
+                stock_summary AS (
+                    SELECT 
+                        lr.stock_code,
+                        lr.option_type,
+                        COUNT(*) as trade_count,
+                        SUM(lr.volume) as total_volume,
+                        SUM(lr.turnover) as total_turnover,
+                        AVG(lr.price) as avg_price,
+                        MAX(lr.timestamp) as latest_trade,
+                        SUM(COALESCE(lr.option_open_interest, 0)) as total_open_interest,
+                        SUM(COALESCE(lr.option_net_open_interest, 0)) as total_net_open_interest
+                    FROM latest_records lr
+                    WHERE lr.rn = 1
+                    GROUP BY lr.stock_code, lr.option_type
+                )
+                SELECT 
+                    ss.stock_code,
+                    COALESCE(si.stock_name, '') as stock_name,
+                    ss.option_type,
+                    ss.trade_count,
+                    ss.total_volume,
+                    ss.total_turnover,
+                    ss.avg_price,
+                    ss.latest_trade,
+                    ss.total_open_interest,
+                    ss.total_net_open_interest
+                FROM stock_summary ss
+                LEFT JOIN stock_info si ON ss.stock_code = si.stock_code
+                ORDER BY ss.stock_code, ss.option_type
+            """
+            
+            print(f"[DEBUG] 执行SQL查询...")
+            cursor.execute(query_sql, query_params)
+            
+            # 处理数据，按股票分组，每个股票包含Call和Put数据
+            raw_data = cursor.fetchall()
+            print(f"[DEBUG] 查询结果总数: {len(raw_data)}")
+            
+            # 打印所有查询到的数据
+            for i, row in enumerate(raw_data):
+                print(f"[DEBUG] 记录 {i+1}: 股票代码={row[0]}, 股票名称={row[1]}, 期权类型={row[2]}, 交易笔数={row[3]}, 成交额={row[5]}")
+            
+            # 特别检查800000恒生指数的数据
+            hsi_data = [row for row in raw_data if row[0] == '800000']
+            if hsi_data:
+                print(f"[DEBUG] 找到恒生指数(800000)数据 {len(hsi_data)} 条:")
+                for row in hsi_data:
+                    print(f"[DEBUG] HSI: 期权类型={row[2]}, 交易笔数={row[3]}, 成交额={row[5]}, 持仓={row[8]}, 净持仓={row[9]}")
+            else:
+                print(f"[DEBUG] 未找到恒生指数(800000)的数据")
+                
+                # 进一步检查数据库中是否有800000的记录
+                cursor.execute("SELECT COUNT(*) FROM option_trades WHERE stock_code = '800000'")
+                total_800000 = cursor.fetchone()[0]
+                print(f"[DEBUG] 数据库中800000总记录数: {total_800000}")
+                
+                if total_800000 > 0:
+                    cursor.execute(f"SELECT COUNT(*) FROM option_trades WHERE stock_code = '800000' AND {time_condition}", query_params)
+                    filtered_800000 = cursor.fetchone()[0]
+                    print(f"[DEBUG] 符合时间条件的800000记录数: {filtered_800000}")
+                    
+                    # 查看最新的几条800000记录
+                    cursor.execute("SELECT stock_code, option_code, option_type, timestamp, volume, turnover FROM option_trades WHERE stock_code = '800000' ORDER BY timestamp DESC LIMIT 5")
+                    recent_800000 = cursor.fetchall()
+                    print(f"[DEBUG] 800000最新5条记录:")
+                    for record in recent_800000:
+                        print(f"[DEBUG]   {record}")
+            
+            stocks_dict = {}
+            
+            for row in raw_data:
+                stock_code = row[0]
+                stock_name = row[1]
+                option_type = row[2]
+                
+                if stock_code not in stocks_dict:
+                    stocks_dict[stock_code] = {
+                        'stock_code': stock_code,
+                        'stock_name': stock_name,
+                        'call_data': {
+                            'trade_count': 0,
+                            'total_volume': 0,
+                            'total_turnover': 0,
+                            'avg_price': 0,
+                            'total_open_interest': 0,
+                            'total_net_open_interest': 0,
+                            'latest_trade': None
+                        },
+                        'put_data': {
+                            'trade_count': 0,
+                            'total_volume': 0,
+                            'total_turnover': 0,
+                            'avg_price': 0,
+                            'total_open_interest': 0,
+                            'total_net_open_interest': 0,
+                            'latest_trade': None
+                        }
+                    }
+                
+                # 根据期权类型填充数据
+                data_key = 'call_data' if option_type == 'Call' else 'put_data'
+                stocks_dict[stock_code][data_key] = {
+                    'trade_count': row[3],
+                    'total_volume': row[4] or 0,
+                    'total_turnover': row[5] or 0,
+                    'avg_price': round(row[6], 3) if row[6] else 0,
+                    'total_open_interest': row[8] or 0,
+                    'total_net_open_interest': row[9] or 0,
+                    'latest_trade': row[7]
+                }
+                
+                # 格式化最新交易时间
+                if row[7]:
+                    try:
+                        formatted_time = datetime.fromisoformat(str(row[7])).strftime('%Y-%m-%d %H:%M:%S')
+                        stocks_dict[stock_code][data_key]['formatted_latest'] = formatted_time
+                    except:
+                        stocks_dict[stock_code][data_key]['formatted_latest'] = str(row[7])
+                else:
+                    stocks_dict[stock_code][data_key]['formatted_latest'] = ''
+            
+            # 转换为列表并按总成交额排序
+            stocks_list = list(stocks_dict.values())
+            stocks_list.sort(key=lambda x: (x['call_data']['total_turnover'] + x['put_data']['total_turnover']), reverse=True)
+            
+            return stocks_list
+    except Exception as e:
+        print(f"获取{market}市场期权对比数据失败: {e}")
+        return []
+
 def get_stock_stats(market='HK'):
     """获取股票统计信息，按Put和Call分别统计
     根据当前时间和市场开盘状态决定统计逻辑：
@@ -398,8 +599,11 @@ def get_stock_stats(market='HK'):
                 current_params = [current_date]
                 compare_params = [compare_date]
             
+            print(f"[DEBUG] 股票统计查询 - 市场: {market}, 当前日期: {current_date}, 对比日期: {compare_date}, 交易中: {is_trading}")
+            print(f"[DEBUG] 当前查询参数: {current_params}, 对比查询参数: {compare_params}")
+            
             # 查询当前期间和对比期间的数据，计算股票粒度的净持仓变化
-            cursor.execute(f"""
+            query_sql = f"""
                 WITH current_latest AS (
                     SELECT 
                         ot.stock_code,
@@ -476,10 +680,25 @@ def get_stock_stats(market='HK'):
                 LEFT JOIN compare_summary cms ON cs.stock_code = cms.stock_code AND cs.option_type = cms.option_type
                 LEFT JOIN stock_info si ON cs.stock_code = si.stock_code
                 ORDER BY cs.total_turnover DESC
-            """, current_params + compare_params)
+            """
+            
+            print(f"[DEBUG] 执行股票统计SQL查询...")
+            cursor.execute(query_sql, current_params + compare_params)
+            
+            result_data = cursor.fetchall()
+            print(f"[DEBUG] 股票统计查询结果总数: {len(result_data)}")
+            
+            # 特别检查800000恒生指数的数据
+            hsi_stats = [row for row in result_data if row[0] == '800000']
+            if hsi_stats:
+                print(f"[DEBUG] 找到恒生指数(800000)统计数据 {len(hsi_stats)} 条:")
+                for row in hsi_stats:
+                    print(f"[DEBUG] HSI统计: 期权类型={row[2]}, 交易笔数={row[3]}, 成交额={row[5]}, 持仓={row[8]}, 净持仓={row[9]}")
+            else:
+                print(f"[DEBUG] 未找到恒生指数(800000)的统计数据")
             
             stocks = []
-            for row in cursor.fetchall():
+            for row in result_data:
                 stock = {
                     'stock_code': row[0],
                     'stock_name': row[1],

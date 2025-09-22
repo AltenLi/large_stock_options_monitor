@@ -1,0 +1,437 @@
+{% extends "base.html" %}
+
+{% block title %}{{ market_name }}期权对比 - V2期权监控数据库{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            {% if market == 'US' %}
+                <i class="bi bi-flag-usa"></i> 美股期权Call/Put对比
+                <span class="badge bg-info ms-2">US Market</span>
+            {% else %}
+                <i class="bi bi-flag"></i> 港股期权Call/Put对比
+                <span class="badge bg-primary ms-2">HK Market</span>
+            {% endif %}
+        </h1>
+        <p class="text-muted">展示每个股票的Call和Put期权总成交额、持仓和净持仓对比（基于最近一次开盘后数据）</p>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-12">
+        <nav aria-label="市场切换">
+            <ul class="nav nav-pills">
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if market == 'HK' else '' }}" href="{{ url_for('options_comparison', market='HK') }}">
+                        <i class="bi bi-flag"></i> 港股期权
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if market == 'US' else '' }}" href="{{ url_for('options_comparison', market='US') }}">
+                        <i class="bi bi-flag-usa"></i> 美股期权
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0">
+                <thead class="table-dark sticky-top">
+                    <tr>
+                        <th rowspan="2" class="align-middle">排名</th>
+                        <th rowspan="2" class="align-middle">股票代码</th>
+                        <th rowspan="2" class="align-middle">股票名称</th>
+                        <th colspan="3" class="text-center">净持仓</th>
+                        <th colspan="3" class="text-center">持仓</th>
+                        <th colspan="3" class="text-center">交易笔数</th>
+                        <th colspan="3" class="text-center">成交额({{ currency }})</th>
+                        <th rowspan="2" class="align-middle">操作</th>
+                    </tr>
+                    <tr>
+                        <th class="bg-success text-white">Call</th>
+                        <th class="bg-danger text-white">Put</th>
+                        <th class="bg-secondary text-white">Call比例</th>
+                        <th class="bg-success text-white">Call</th>
+                        <th class="bg-danger text-white">Put</th>
+                        <th class="bg-secondary text-white">Call比例</th>
+                        <th class="bg-success text-white">Call</th>
+                        <th class="bg-danger text-white">Put</th>
+                        <th class="bg-secondary text-white">Call比例</th>
+                        <th class="bg-success text-white">Call</th>
+                        <th class="bg-danger text-white">Put</th>
+                        <th class="bg-secondary text-white">Call比例</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stock in stocks %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-secondary">{{ loop.index }}</span>
+                        </td>
+                        <td>
+                            {% if market == 'US' %}
+                                <span class="badge bg-info">{{ stock.stock_code }}</span>
+                            {% else %}
+                                <span class="badge bg-primary">{{ stock.stock_code }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ stock.stock_name or '-' }}</strong>
+                        </td>
+                        <!-- 净持仓：Call -->
+                        <td class="bg-light">
+                            {% if stock.call_data.total_net_open_interest != 0 %}
+                                {% set call_net_abs = stock.call_data.total_net_open_interest|abs %}
+                                {% set put_net_abs = stock.put_data.total_net_open_interest|abs %}
+                                {% if call_net_abs > put_net_abs %}
+                                    {% if stock.call_data.total_net_open_interest > 0 %}
+                                        <span class="text-success fw-bold">{{ "{:,}".format(stock.call_data.total_net_open_interest) }}</span>
+                                    {% else %}
+                                        <span class="text-danger fw-bold">{{ "{:,}".format(stock.call_data.total_net_open_interest) }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    {% if stock.call_data.total_net_open_interest > 0 %}
+                                        <span class="text-success fw-light">{{ "{:,}".format(stock.call_data.total_net_open_interest) }}</span>
+                                    {% else %}
+                                        <span class="text-danger fw-light">{{ "{:,}".format(stock.call_data.total_net_open_interest) }}</span>
+                                    {% endif %}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <!-- 净持仓：Put -->
+                        <td class="bg-light">
+                            {% if stock.put_data.total_net_open_interest != 0 %}
+                                {% set call_net_abs = stock.call_data.total_net_open_interest|abs %}
+                                {% set put_net_abs = stock.put_data.total_net_open_interest|abs %}
+                                {% if put_net_abs > call_net_abs %}
+                                    {% if stock.put_data.total_net_open_interest > 0 %}
+                                        <span class="text-success fw-bold">{{ "{:,}".format(stock.put_data.total_net_open_interest) }}</span>
+                                    {% else %}
+                                        <span class="text-danger fw-bold">{{ "{:,}".format(stock.put_data.total_net_open_interest) }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    {% if stock.put_data.total_net_open_interest > 0 %}
+                                        <span class="text-success fw-light">{{ "{:,}".format(stock.put_data.total_net_open_interest) }}</span>
+                                    {% else %}
+                                        <span class="text-danger fw-light">{{ "{:,}".format(stock.put_data.total_net_open_interest) }}</span>
+                                    {% endif %}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <!-- 净持仓：Call比例 -->
+                        <td class="bg-light">
+                            {% set call_net_abs = stock.call_data.total_net_open_interest|abs %}
+                            {% set put_net_abs = stock.put_data.total_net_open_interest|abs %}
+                            {% set total_net_abs = call_net_abs + put_net_abs %}
+                            {% if total_net_abs > 0 %}
+                                {% set call_ratio = (call_net_abs / total_net_abs * 100)|round(1) %}
+                                <span class="text-info">{{ call_ratio }}%</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <!-- 持仓：Call -->
+                        <td class="bg-light">
+                            {% if stock.call_data.total_open_interest > 0 %}
+                                {% if stock.call_data.total_open_interest > stock.put_data.total_open_interest %}
+                                    <span class="fw-bold">{{ "{:,}".format(stock.call_data.total_open_interest) }}</span>
+                                {% else %}
+                                    <span class="fw-light">{{ "{:,}".format(stock.call_data.total_open_interest) }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <!-- 持仓：Put -->
+                        <td class="bg-light">
+                            {% if stock.put_data.total_open_interest > 0 %}
+                                {% if stock.put_data.total_open_interest > stock.call_data.total_open_interest %}
+                                    <span class="fw-bold">{{ "{:,}".format(stock.put_data.total_open_interest) }}</span>
+                                {% else %}
+                                    <span class="fw-light">{{ "{:,}".format(stock.put_data.total_open_interest) }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <!-- 持仓：Call比例 -->
+                        <td class="bg-light">
+                            {% set total_oi = stock.call_data.total_open_interest + stock.put_data.total_open_interest %}
+                            {% if total_oi > 0 %}
+                                {% set call_oi_ratio = (stock.call_data.total_open_interest / total_oi * 100)|round(1) %}
+                                <span class="text-info">{{ call_oi_ratio }}%</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <!-- 交易笔数：Call -->
+                        <td class="bg-light">
+                            {% if stock.call_data.trade_count > 0 %}
+                                {% if stock.call_data.trade_count > stock.put_data.trade_count %}
+                                    <span class="fw-bold">{{ "{:,}".format(stock.call_data.trade_count) }}</span>
+                                {% else %}
+                                    <span class="fw-light">{{ "{:,}".format(stock.call_data.trade_count) }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <!-- 交易笔数：Put -->
+                        <td class="bg-light">
+                            {% if stock.put_data.trade_count > 0 %}
+                                {% if stock.put_data.trade_count > stock.call_data.trade_count %}
+                                    <span class="fw-bold">{{ "{:,}".format(stock.put_data.trade_count) }}</span>
+                                {% else %}
+                                    <span class="fw-light">{{ "{:,}".format(stock.put_data.trade_count) }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <!-- 交易笔数：Call比例 -->
+                        <td class="bg-light">
+                            {% set total_trades = stock.call_data.trade_count + stock.put_data.trade_count %}
+                            {% if total_trades > 0 %}
+                                {% set call_trade_ratio = (stock.call_data.trade_count / total_trades * 100)|round(1) %}
+                                <span class="text-info">{{ call_trade_ratio }}%</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <!-- 成交额：Call -->
+                        <td class="bg-light">
+                            {% if stock.call_data.total_turnover > 0 %}
+                                {% if stock.call_data.total_turnover > stock.put_data.total_turnover %}
+                                    <span class="text-success fw-bold">
+                                        {% if market == 'US' %}
+                                            ${{ "{:,.0f}".format(stock.call_data.total_turnover) }}
+                                        {% else %}
+                                            {{ "{:,.0f}".format(stock.call_data.total_turnover) }}
+                                        {% endif %}
+                                    </span>
+                                {% else %}
+                                    <span class="text-success fw-light">
+                                        {% if market == 'US' %}
+                                            ${{ "{:,.0f}".format(stock.call_data.total_turnover) }}
+                                        {% else %}
+                                            {{ "{:,.0f}".format(stock.call_data.total_turnover) }}
+                                        {% endif %}
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <!-- 成交额：Put -->
+                        <td class="bg-light">
+                            {% if stock.put_data.total_turnover > 0 %}
+                                {% if stock.put_data.total_turnover > stock.call_data.total_turnover %}
+                                    <span class="text-success fw-bold">
+                                        {% if market == 'US' %}
+                                            ${{ "{:,.0f}".format(stock.put_data.total_turnover) }}
+                                        {% else %}
+                                            {{ "{:,.0f}".format(stock.put_data.total_turnover) }}
+                                        {% endif %}
+                                    </span>
+                                {% else %}
+                                    <span class="text-success fw-light">
+                                        {% if market == 'US' %}
+                                            ${{ "{:,.0f}".format(stock.put_data.total_turnover) }}
+                                        {% else %}
+                                            {{ "{:,.0f}".format(stock.put_data.total_turnover) }}
+                                        {% endif %}
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <!-- 成交额：Call比例 -->
+                        <td class="bg-light">
+                            {% set total_turnover = stock.call_data.total_turnover + stock.put_data.total_turnover %}
+                            {% if total_turnover > 0 %}
+                                {% set call_turnover_ratio = (stock.call_data.total_turnover / total_turnover * 100)|round(1) %}
+                                <span class="text-info">{{ call_turnover_ratio }}%</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('trades', market=market, stock_code=stock.stock_code) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> 查看
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="15" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox"></i> 暂无{{ market_name }}期权数据
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if stocks %}
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0"><i class="bi bi-arrow-up-circle"></i> Call期权成交额 TOP 5</h6>
+            </div>
+            <div class="card-body">
+                {% for stock in (stocks|sort(attribute='call_data.total_turnover', reverse=True))[:5] %}
+                {% if stock.call_data.total_turnover > 0 %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <small class="text-muted">{{ loop.index }}. {{ stock.stock_code }}</small>
+                        <br>
+                        <strong>{{ stock.stock_name or '-' }}</strong>
+                    </div>
+                    <div class="text-end">
+                        <span class="text-success fw-bold">
+                            {% if market == 'US' %}
+                                ${{ "{:,.0f}".format(stock.call_data.total_turnover) }}
+                            {% else %}
+                                {{ "{:,.0f}".format(stock.call_data.total_turnover) }}
+                            {% endif %}
+                        </span>
+                        <br>
+                        <small class="text-muted">{{ stock.call_data.trade_count }}笔</small>
+                    </div>
+                </div>
+                {% if not loop.last %}<hr class="my-2">{% endif %}
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h6 class="mb-0"><i class="bi bi-arrow-down-circle"></i> Put期权成交额 TOP 5</h6>
+            </div>
+            <div class="card-body">
+                {% for stock in (stocks|sort(attribute='put_data.total_turnover', reverse=True))[:5] %}
+                {% if stock.put_data.total_turnover > 0 %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <small class="text-muted">{{ loop.index }}. {{ stock.stock_code }}</small>
+                        <br>
+                        <strong>{{ stock.stock_name or '-' }}</strong>
+                    </div>
+                    <div class="text-end">
+                        <span class="text-success fw-bold">
+                            {% if market == 'US' %}
+                                ${{ "{:,.0f}".format(stock.put_data.total_turnover) }}
+                            {% else %}
+                                {{ "{:,.0f}".format(stock.put_data.total_turnover) }}
+                            {% endif %}
+                        </span>
+                        <br>
+                        <small class="text-muted">{{ stock.put_data.trade_count }}笔</small>
+                    </div>
+                </div>
+                {% if not loop.last %}<hr class="my-2">{% endif %}
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0"><i class="bi bi-pie-chart"></i> Call期权持仓 TOP 5</h6>
+            </div>
+            <div class="card-body">
+                {% for stock in (stocks|sort(attribute='call_data.total_open_interest', reverse=True))[:5] %}
+                {% if stock.call_data.total_open_interest > 0 %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <small class="text-muted">{{ loop.index }}. {{ stock.stock_code }}</small>
+                        <br>
+                        <strong>{{ stock.stock_name or '-' }}</strong>
+                    </div>
+                    <div class="text-end">
+                        <span class="text-info fw-bold">
+                            {{ "{:,}".format(stock.call_data.total_open_interest) }}
+                        </span>
+                        <br>
+                        <small class="text-muted">净持仓: {{ "{:,}".format(stock.call_data.total_net_open_interest) }}</small>
+                    </div>
+                </div>
+                {% if not loop.last %}<hr class="my-2">{% endif %}
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-warning text-white">
+                <h6 class="mb-0"><i class="bi bi-pie-chart-fill"></i> Put期权持仓 TOP 5</h6>
+            </div>
+            <div class="card-body">
+                {% for stock in (stocks|sort(attribute='put_data.total_open_interest', reverse=True))[:5] %}
+                {% if stock.put_data.total_open_interest > 0 %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <small class="text-muted">{{ loop.index }}. {{ stock.stock_code }}</small>
+                        <br>
+                        <strong>{{ stock.stock_name or '-' }}</strong>
+                    </div>
+                    <div class="text-end">
+                        <span class="text-warning fw-bold">
+                            {{ "{:,}".format(stock.put_data.total_open_interest) }}
+                        </span>
+                        <br>
+                        <small class="text-muted">净持仓: {{ "{:,}".format(stock.put_data.total_net_open_interest) }}</small>
+                    </div>
+                </div>
+                {% if not loop.last %}<hr class="my-2">{% endif %}
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 自动刷新期权对比数据（每2分钟）
+function refreshComparison() {
+    window.location.reload();
+}
+
+// 可选：启用自动刷新
+// setInterval(refreshComparison, 120000);
+
+// 高亮显示Call/Put数据差异（已通过模板逻辑实现，此处保留用于其他扩展）
+document.addEventListener('DOMContentLoaded', function() {
+    // 粗体显示逻辑已在模板中实现
+    console.log('期权对比页面已加载');
+});
+</script>
+{% endblock %}
