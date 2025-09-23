@@ -47,7 +47,7 @@ class V2Notifier:
             data = {
                 "msgtype": "text",
                 "text": {
-                    "content": f"[V2系统] {message}",
+                    "content": f"{message}",
                     "mentioned_list": mentioned_list or wework_config.get('mentioned_list', []),
                     "mentioned_mobile_list": wework_config.get('mentioned_mobile_list', [])
                 }
@@ -97,8 +97,79 @@ class V2Notifier:
             
         return self.mac_notifier.send_notification(title, message, subtitle)
     
+    def send_individual_stock_notification(self, stock_code: str, stock_name: str, 
+                                         current_price: float, options: List[Dict[str, Any]]) -> bool:
+        """发送单个股票的期权监控通知"""
+        if not options:
+            return False
+        
+        try:
+            current_time = datetime.now()
+            
+            # 按新增张数降序排序
+            sorted_options = sorted(options, key=lambda x: x.get('volume_diff', 0), reverse=True)
+            
+            # 构建消息
+            message_parts = [
+                "📊 期权大单监控",
+                f"⏰ 时间: {current_time.strftime('%Y-%m-%d %H:%M:%S')}",
+                f"• {stock_name} ({stock_code}): （股价: {current_price:.2f}）"
+            ]
+            
+            # 添加所有满足条件的期权
+            for i, option in enumerate(sorted_options, 1):
+                option_code = option.get('option_code', '')
+                option_type = option.get('option_type', '')
+                price = option.get('price', 0)
+                volume = option.get('volume', 0)
+                volume_diff = option.get('volume_diff', 0)
+                turnover = option.get('turnover', 0)
+                
+                # 获取持仓相关信息
+                option_open_interest = option.get('option_open_interest', 0)
+                option_net_open_interest = option.get('option_net_open_interest', 0)
+                open_interest_diff = option.get('open_interest_diff', 0)
+                net_open_interest_diff = option.get('net_open_interest_diff', 0)
+                
+                # 构建期权详情行
+                option_detail = (
+                    f"{i}. {option_code}: {option_type}, "
+                    f"{price:.3f}×{volume:,}张, +{volume_diff:,}张, "
+                    f"{turnover/10000:.1f}万, "
+                    f"持仓: {option_open_interest:,}张（{open_interest_diff:+,}）, "
+                    f"净持仓: {option_net_open_interest:,}张（{net_open_interest_diff:+,}）"
+                )
+                
+                message_parts.append(option_detail)
+            
+            message = "\n".join(message_parts)
+            
+            # 发送通知
+            success = False
+            
+            # 发送企微通知
+            if self.send_wework_notification(message):
+                success = True
+            
+            # 发送Mac通知
+            mac_title = f"📊 {stock_name} 期权大单"
+            mac_message = f"{len(options)}个期权满足条件\n股价: {current_price:.2f}"
+            if self.send_mac_notification(mac_title, mac_message):
+                success = True
+            
+            # 控制台输出
+            if NOTIFICATION.get('enable_console', True):
+                print(f"\n{message}")
+                success = True
+            
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"V2发送单个股票通知失败 {stock_code}: {e}")
+            return False
+
     def send_v1_style_summary_report(self, big_options: List[Dict[str, Any]]) -> bool:
-        """发送V1风格的期权监控汇总报告"""
+        """发送V1风格的期权监控汇总报告（保留作为备用）"""
         if not big_options:
             return False
         

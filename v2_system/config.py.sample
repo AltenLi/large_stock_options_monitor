@@ -78,18 +78,18 @@ OPTION_FILTERS = {
     
     # 恒生指数期权配置
     'hsi_options': {
-        'min_volume': 200,           # 恒指期权成交量相对较小
+        'min_volume': 100,           # 恒指期权成交量相对较小
         'min_turnover': 500000,      # 最小成交额(港币) - 恒指期权价值较高
         'min_volume_diff': 100,      # 最小增量成交量(张)
-        'price_range': 0.2,         # 价格范围 - 恒指期权波动相对稳定
+        'price_range': 0.3,         # 价格范围 - 恒指期权波动相对稳定
     },
     
     # 科指期权配置
     'hscei_options': {
-        'min_volume': 150,           # 科指期权成交量通常更小
+        'min_volume': 100,           # 科指期权成交量通常更小
         'min_turnover': 300000,      # 最小成交额(港币)
         'min_volume_diff': 80,       # 最小增量成交量(张)
-        'price_range': 0.25,        # 价格范围
+        'price_range': 0.3,        # 价格范围
     },
 }
 
@@ -211,8 +211,8 @@ STOCK_CONFIG = {
     'HK.09626': {'name': '哔哩哔哩-W', 'default_price': 213.0, 'monitor': True},
     'HK.02269': {'name': '药明生物', 'default_price': 39.0, 'monitor': True},
     'HK.02015': {'name': '理想汽车-W', 'default_price': 100.0, 'monitor': True},
-    'HK.800000': {'name': '恒指', 'default_price': 26575, 'monitor': True},
-    'HK.800700': {'name': '科指', 'default_price': 6335, 'monitor': True},
+    'HK.800000': {'name': '恒指', 'default_price': 26300, 'monitor': True},
+    'HK.800700': {'name': '科指', 'default_price': 6233, 'monitor': True},
     
     # 美股配置
     'US.AAPL': {'name': '苹果', 'default_price': 237.0, 'monitor': True},
@@ -225,7 +225,7 @@ STOCK_CONFIG = {
     'US.NFLX': {'name': '奈飞', 'default_price': 1202.0, 'monitor': True},
     'US.AMD': {'name': 'AMD', 'default_price': 161.0, 'monitor': True},
     'US.CRM': {'name': 'Salesforce', 'default_price': 242.0, 'monitor': True},
-    'US.QS': {'name': 'QuantumScape', 'default_price': 10.0, 'monitor': False},  # 不监控但有配置
+    'US.QS': {'name': 'QuantumScape', 'default_price': 10.0, 'monitor': True},  # 不监控但有配置
 }
 
 # 默认配置

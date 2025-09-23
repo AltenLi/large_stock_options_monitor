@@ -51,38 +51,6 @@
 - 🛠️ **数据修复** - 内置数据修正工具，确保数据准确性
 - 📦 **自动备份** - 可配置的数据备份机制
 
-## 🏗️ 系统架构
-
-```
-V2 多市场期权监控系统
-├── 🎯 核心监控模块
-│   ├── option_monitor_v2.py          # 通用监控引擎
-│   ├── start_us_monitor.py           # 美股专用启动器
-│   ├── start_hk_monitor.py           # 美股专用启动器
-│   └── start_multi_market_monitor.py # 多市场并行监控
-├── 📊 数据处理层 (utils/)
-│   ├── database_manager.py           # 分市场数据库管理
-│   │   ├── 🇭🇰 港股数据库管理器 (单例模式)
-│   │   └── 🇺🇸 美股数据库管理器 (单例模式)
-│   ├── big_options_processor.py      # 多市场大单处理器
-│   ├── notifier.py                   # 智能通知系统
-│   └── data_handler.py               # 市场感知数据处理
-├── 🌐 Web 服务 (web_viewer.py)
-│   ├── Flask 多市场 Web 应用
-│   ├── 分市场 RESTful API 接口
-│   ├── 🇭🇰 港股数据接口 (/stocks, /trades)
-│   ├── 🇺🇸 美股数据接口 (/stocks, /trades)
-│   └── 响应式多市场前端界面
-├── 💾 分离式数据存储
-│   ├── 🇭🇰 data/hk_options_monitor_v2.db
-│   └── 🇺🇸 data/us_options_monitor_v2.db
-└── 🛠️ 工具集
-    ├── 数据修正工具 (fix_volume_diff.py)
-    ├── 多市场配置管理 (config.py)
-    ├── 数据库测试工具 (test_multi_db.py)
-    └── 日志系统 (logger.py)
-```
-
 ## 🚀 快速开始
 
 ### 📋 环境要求
@@ -96,10 +64,10 @@ V2 多市场期权监控系统
 
 ```bash
 # 克隆项目
-git clone <repository-url>
+git clone https://github.com/AltenLi/large_stock_options_monitor.git
 cd large_stock_options_monitor/v2_system
 
-# 初始化配置文件
+# 初始化配置文件，并修改配置
 cp config.py.sample config.py
 
 # 安装 Python 依赖
@@ -114,14 +82,14 @@ pip install futu-api pandas numpy flask requests
 1. **编辑配置文件** `config.py`:
 
 ```python
-# 富途 API 配置
+# 富途 API 配置，默认就可以
 FUTU_CONFIG = {
     'host': '127.0.0.1',    # 富途牛牛客户端地址
     'port': 11111,          # API 端口
     'market': 'HK'          # 市场代码
 }
 
-# 大单监控阈值
+# 大单监控阈值，默认就可以
 BIG_TRADE_CONFIG = {
     'min_volume_threshold': 100,      # 最小成交量(张)
     'min_turnover_threshold': 500000, # 最小成交额(港币)
@@ -300,36 +268,6 @@ OPTION_FILTERS = {
 }
 ```
 
-## 📁 项目结构
-
-```
-v2_system/
-├── 📄 README.md                    # 项目文档
-├── ⚙️ config.py                    # 配置文件
-├── 🎯 option_monitor_v2.py         # 主监控程序
-├── 🌐 web_viewer.py               # Web 界面
-├── 🛠️ fix_volume_diff.py          # 数据修正工具
-├── 📊 utils/                      # 工具模块
-│   ├── 🗄️ database_manager.py     # 数据库管理
-│   ├── 📈 big_options_processor.py # 大单处理器
-│   ├── 🔔 notifier.py             # 通知系统
-│   ├── 📱 mac_notifier.py         # Mac 通知
-│   ├── 📋 data_handler.py         # 数据处理
-│   └── 📝 logger.py               # 日志系统
-├── 🎨 templates/                  # Web 模板
-│   ├── 🏠 base.html               # 基础模板
-│   ├── 🏠 index.html              # 多市场首页
-│   ├── 🇭🇰 stocks.html            # 港股统计页面
-│   ├── 🇭🇰 trades.html            # 港股交易记录页面
-│   ├── 🇺🇸 us_stocks.html         # 美股统计页面
-│   └── 🇺🇸 us_trades.html         # 美股交易记录页面
-├── 💾 data/                       # 数据目录
-│   ├── 🇭🇰 hk_options_monitor_v2.db # 港股 SQLite 数据库
-│   └── 🇺🇸 us_options_monitor_v2.db # 美股 SQLite 数据库
-├── 📝 logs/                       # 日志目录
-└── 🧪 test_multi_db.py           # 多市场数据库测试工具
-```
-
 ## 🔧 故障排除
 
 ### 常见问题
@@ -372,8 +310,6 @@ A: 1. 确认富途账户支持美股数据权限
 ## 🗓 TODO
 
 - [x] ✅ **支持美股期权** - 已完成多市场期权监控
-- [ ] 📊 **期权Greeks计算** - 添加Delta、Gamma、Theta等希腊字母计算
-- [ ] 📈 **技术指标分析** - 集成常用技术指标
 - [ ] 🤖 **AI智能预警** - 基于机器学习的异常交易识别
 - [ ] 📱 **移动端适配** - 优化移动设备显示效果
 - [ ] 🔄 **实时推送优化** - WebSocket实时数据推送

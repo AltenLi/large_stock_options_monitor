@@ -249,44 +249,72 @@ class V2OptionMonitor:
                 self.logger.error(f"V2系统不支持的市场类型: {self.market}")
                 return []
             
-            # 获取大单期权
-            big_options = self.big_options_processor.get_recent_big_options(
-                self.quote_ctx, 
-                monitor_stocks,
-                option_monitor=self
-            )
+            # 🔥 修改：按股票逐个处理并独立推送
+            all_big_options = []
             
-            if big_options:
-                self.logger.info(f"V2系统发现 {len(big_options)} 笔大单期权")
-                
-                # 与历史数据比较，计算增量（在保存之前比较）
-                big_options_with_diff = self.compare_with_previous_options(big_options)
-                
-                # 发送一次合并的汇总通知（包含所有有变化的股票）
-                if big_options_with_diff:
-                    # 使用V1风格的汇总报告，将所有股票合并在一个通知中
-                    self.notifier.send_v1_style_summary_report(big_options_with_diff)
-                
-                # 保存数据（保存原始数据，确保下次比较时有正确的基准）
-                self.data_handler.save_option_data(big_options)
-                
-                # 更新历史数据（按期权代码更新，保持全量缓存字典）
-                if not hasattr(self, 'previous_options') or self.previous_options is None:
-                    self.previous_options = {}
-                
-                # 将当前期权数据按代码更新到缓存字典中
-                for current_opt in big_options:
-                    option_code = current_opt.get('option_code', '')
-                    if option_code:
-                        self.previous_options[option_code] = current_opt
-                
-                self.logger.info(f"V2系统缓存更新: 当前{len(big_options)}个期权，全量缓存{len(self.previous_options)}个期权")
-                
+            for stock_code in monitor_stocks:
+                try:
+                    self.logger.info(f"V2系统处理股票: {stock_code}")
+                    
+                    # 获取单个股票的期权数据
+                    stock_options = self.big_options_processor.get_recent_big_options(
+                        self.quote_ctx, 
+                        [stock_code],  # 只处理单个股票
+                        option_monitor=self
+                    )
+                    
+                    if stock_options:
+                        self.logger.info(f"V2系统 {stock_code} 发现 {len(stock_options)} 笔大单期权")
+                        
+                        # 与历史数据比较，计算增量
+                        stock_options_with_diff = self.compare_with_previous_options(stock_options)
+                        
+                        if stock_options_with_diff:
+                            # 获取股票信息
+                            stock_name = stock_options_with_diff[0].get('stock_name', stock_code)
+                            current_price = self.get_stock_price(stock_code)
+                            
+                            # 更新股票信息缓存
+                            self.notifier.update_stock_info_cache(stock_code, stock_name, current_price)
+                            
+                            # 🔥 立即发送该股票的独立推送
+                            self.notifier.send_individual_stock_notification(
+                                stock_code, stock_name, current_price, stock_options_with_diff
+                            )
+                            
+                            self.logger.info(f"V2系统已发送 {stock_code} 独立推送: {len(stock_options_with_diff)} 个期权")
+                        
+                        # 收集所有期权用于保存
+                        all_big_options.extend(stock_options)
+                        
+                        # 更新历史数据缓存
+                        if not hasattr(self, 'previous_options') or self.previous_options is None:
+                            self.previous_options = {}
+                        
+                        for current_opt in stock_options:
+                            option_code = current_opt.get('option_code', '')
+                            if option_code:
+                                self.previous_options[option_code] = current_opt
+                    
+                    else:
+                        self.logger.info(f"V2系统 {stock_code} 未发现大单期权")
+                    
+                    # 添加短暂延迟，避免API调用过于频繁
+                    time.sleep(0.5)
+                    
+                except Exception as e:
+                    self.logger.error(f"V2系统处理股票 {stock_code} 失败: {e}")
+                    continue
+            
+            # 保存所有期权数据
+            if all_big_options:
+                self.data_handler.save_option_data(all_big_options)
+                self.logger.info(f"V2系统保存 {len(all_big_options)} 笔期权数据")
             else:
                 self.logger.info("V2系统本次扫描未发现大单期权")
             
             self.last_scan_time = datetime.now()
-            return big_options
+            return all_big_options
             
         except Exception as e:
             self.logger.error(f"V2系统扫描大单期权失败: {e}")
@@ -437,7 +465,7 @@ class V2OptionMonitor:
             # 生成汇总报告
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             report_lines = [
-                f"[V2系统] 📊 期权监控汇总报告",
+                f"📊 期权监控汇总报告",
                 f"⏰ 时间: {current_time}",
                 f"📈 总交易: {total_trades} 笔",
                 f"💰 总金额: {total_amount:,.0f} 港币",
