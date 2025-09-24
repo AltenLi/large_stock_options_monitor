@@ -188,9 +188,9 @@ class MultiMarketMonitor:
             
             # 监控循环 - 根据市场数量调整间隔
             if self.hk_enabled and self.us_enabled:
-                scan_interval = 120  # 多市场模式：2分钟
+                scan_interval = 20  # 多市场模式
             else:
-                scan_interval = 60   # 单市场模式：1分钟
+                scan_interval = 10   # 单市场模式
             
             while self.running:
                 try:
@@ -235,7 +235,7 @@ class MultiMarketMonitor:
                     
                 except Exception as e:
                     self.logger.error(f"❌ 港股监控异常: {e}")
-                    time.sleep(60)  # 异常时等待1分钟
+                    time.sleep(30)  # 异常时等待1分钟
                     
         except Exception as e:
             self.logger.error(f"❌ 港股监控线程异常: {e}")
@@ -257,16 +257,16 @@ class MultiMarketMonitor:
             # 注册美股市场
             self.register_market('US')
             
-            # 如果是多市场模式，美股线程等待60秒错峰启动
+            # 如果是多市场模式，美股线程等待30秒错峰启动
             if self.hk_enabled and self.us_enabled:
-                self.logger.info("美股监控线程等待60秒，错峰启动...")
-                time.sleep(60)
+                self.logger.info("美股监控线程等待30秒，错峰启动...")
+                time.sleep(30)
             
             # 监控循环 - 根据市场数量调整间隔
             if self.hk_enabled and self.us_enabled:
-                scan_interval = 120  # 多市场模式：2分钟
+                scan_interval = 20  # 多市场模式：1分钟
             else:
-                scan_interval = 60   # 单市场模式：1分钟
+                scan_interval = 10   # 单市场模式：0.5分钟
             
             while self.running:
                 try:
@@ -311,7 +311,7 @@ class MultiMarketMonitor:
                     
                 except Exception as e:
                     self.logger.error(f"❌ 美股监控异常: {e}")
-                    time.sleep(60)  # 异常时等待1分钟
+                    time.sleep(30)  # 异常时等待0.5分钟
                     
         except Exception as e:
             self.logger.error(f"❌ 美股监控线程异常: {e}")

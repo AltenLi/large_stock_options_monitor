@@ -271,7 +271,10 @@ class V2DatabaseManager:
             return 0
 
     def get_previous_option_volume(self, option_code: str, current_volume: int, trade_date: Optional[str] = None) -> int:
-        """获取指定期权的上一条记录成交量（用于计算正确的变化量）"""
+        """获取指定期权的上一条记录成交量（用于计算正确的变化量）
+        
+        🔥 修改逻辑：获取该期权代码的上一条记录（不限于当日），用于计算正确的成交量变化
+        """
         try:
             if trade_date is None:
                 trade_date = datetime.now().date()
@@ -281,26 +284,22 @@ class V2DatabaseManager:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 
-                # 🔥 修复：获取该期权当日最新的一条记录成交量
-                # 如果当前成交量与最新记录相同，说明没有变化，返回当前成交量
-                # 如果不同，返回最新记录的成交量用于计算diff
+                # 🔥 修改：获取该期权代码的最新一条记录（不限于当日）
+                # 这样可以正确计算跨期的成交量变化
                 cursor.execute('''
                     SELECT volume FROM option_trades 
-                    WHERE option_code = ? AND trade_date = ?
+                    WHERE option_code = ?
                     ORDER BY timestamp DESC
                     LIMIT 1
-                ''', (option_code, trade_date))
+                ''', (option_code,))
                 
                 result = cursor.fetchone()
                 if result:
                     last_volume = result[0]
-                    # 如果当前成交量与最新记录相同，说明没有新的交易
-                    if current_volume == last_volume:
-                        self.logger.debug(f"V2期权{option_code}成交量无变化: {current_volume}")
-                        return current_volume  # 返回相同值，diff为0
-                    else:
-                        self.logger.debug(f"V2期权{option_code}成交量变化: {last_volume} -> {current_volume}")
-                        return last_volume
+                    # 🔥 修改：直接返回历史成交量，让调用方计算diff
+                    # 这样可以正确显示成交量变化，即使是跨期对比
+                    self.logger.debug(f"V2期权{option_code}成交量对比: {last_volume} -> {current_volume}")
+                    return last_volume
                 else:
                     # 没有历史记录，这是第一次记录
                     self.logger.debug(f"V2期权{option_code}首次记录成交量: {current_volume}")
@@ -311,7 +310,10 @@ class V2DatabaseManager:
             return 0
     
     def get_previous_option_open_interest(self, option_code: str, current_open_interest: int, trade_date: Optional[str] = None) -> tuple:
-        """获取指定期权的历史未平仓合约数，返回(previous_open_interest, previous_net_open_interest)"""
+        """获取指定期权的历史未平仓合约数，返回(previous_open_interest, previous_net_open_interest)
+        
+        🔥 修改逻辑：获取该期权代码的上一条记录（不限于当日），用于计算正确的持仓变化量
+        """
         try:
             if trade_date is None:
                 trade_date = datetime.now().date()
@@ -321,25 +323,24 @@ class V2DatabaseManager:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 
+                # 🔥 修改：获取该期权代码的最新一条记录（不限于当日）
+                # 这样可以正确计算跨期的持仓变化量
                 cursor.execute('''
                     SELECT option_open_interest, option_net_open_interest FROM option_trades 
-                    WHERE option_code = ? AND trade_date = ?
+                    WHERE option_code = ?
                     ORDER BY timestamp DESC
                     LIMIT 1
-                ''', (option_code, trade_date))
+                ''', (option_code,))
                 
                 result = cursor.fetchone()
                 if result:
                     last_open_interest = result[0] or 0
                     last_net_open_interest = result[1] or 0
                     
-                    # 如果当前未平仓合约数与最新记录相同，说明没有变化
-                    if current_open_interest == last_open_interest:
-                        self.logger.debug(f"V2期权{option_code}未平仓合约数无变化: {current_open_interest}")
-                        return current_open_interest, last_net_open_interest  # 返回相同值，diff为0
-                    else:
-                        self.logger.debug(f"V2期权{option_code}未平仓合约数变化: {last_open_interest} -> {current_open_interest}")
-                        return last_open_interest, last_net_open_interest
+                    # 🔥 修改：直接返回历史数据，让调用方计算diff
+                    # 这样可以正确显示持仓变化量，即使是跨期对比
+                    self.logger.debug(f"V2期权{option_code}持仓对比: {last_open_interest} -> {current_open_interest}")
+                    return last_open_interest, last_net_open_interest
                 else:
                     # 没有历史记录，这是第一次记录
                     self.logger.debug(f"V2期权{option_code}首次记录未平仓合约数: {current_open_interest}")
