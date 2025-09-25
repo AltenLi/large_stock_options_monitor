@@ -65,34 +65,35 @@ def get_hk_stock_price(symbol: str, hk_data_cache: Optional[pd.DataFrame] = None
         print(f"获取港股 {symbol} 价格失败: {e}")
         return None
 
-def get_hk_index_price(symbol: str, hk_data_cache: Optional[pd.DataFrame] = None) -> Optional[float]:
-    """获取港股指数价格 - 使用缓存的数据避免重复请求"""
+def get_hk_index_price(symbol: str, hk_index_cache: Optional[pd.DataFrame] = None) -> Optional[float]:
+    """获取港股指数价格 - 使用专门的港股指数API"""
     try:
-        if hk_data_cache is not None:
+        if hk_index_cache is not None:
             if symbol == 'HSI':
-                # 在港股数据中查找恒生指数相关代码
-                possible_patterns = ['HSI', 'hsi', '恒生指数', 'Hang Seng', '800000']
-                for pattern in possible_patterns:
-                    hsi_data = hk_data_cache[hk_data_cache['代码'].str.contains(pattern, case=False, na=False) | 
-                                hk_data_cache['名称'].str.contains(pattern, case=False, na=False)]
-                    if not hsi_data.empty:
-                        price = hsi_data['最新价'].iloc[0]
-                        if pd.notna(price) and price > 0:
-                            print(f"  ✓ 从缓存获取HSI价格: {price}")
-                            return float(price)
+                # 精确查找恒生指数 - 代码为HSI且名称为恒生指数
+                hsi_data = hk_index_cache[
+                    (hk_index_cache['代码'] == 'HSI') & 
+                    (hk_index_cache['名称'] == '恒生指数')
+                ]
+                if not hsi_data.empty:
+                    price = hsi_data['最新价'].iloc[0]
+                    if pd.notna(price) and price > 0:
+                        print(f"  ✓ 从指数缓存获取HSI价格: {price}")
+                        return float(price)
+                        
             elif symbol == 'HSCEI':
-                # 在港股数据中查找恒生科技指数相关代码
-                possible_patterns = ['HSCEI', 'hscei', '科技指数', 'Tech Index', '800700']
-                for pattern in possible_patterns:
-                    hscei_data = hk_data_cache[hk_data_cache['代码'].str.contains(pattern, case=False, na=False) | 
-                                  hk_data_cache['名称'].str.contains(pattern, case=False, na=False)]
-                    if not hscei_data.empty:
-                        price = hscei_data['最新价'].iloc[0]
-                        if pd.notna(price) and price > 0:
-                            print(f"  ✓ 从缓存获取HSCEI价格: {price}")
-                            return float(price)
+                # 精确查找国企指数 - 代码为HSCEI且名称为国企指数
+                hscei_data = hk_index_cache[
+                    (hk_index_cache['代码'] == 'HSCEI') & 
+                    (hk_index_cache['名称'] == '国企指数')
+                ]
+                if not hscei_data.empty:
+                    price = hscei_data['最新价'].iloc[0]
+                    if pd.notna(price) and price > 0:
+                        print(f"  ✓ 从指数缓存获取HSCEI价格: {price}")
+                        return float(price)
         
-        print(f"  未在缓存中找到指数 {symbol}")
+        print(f"  港股指数缓存中未找到 {symbol}，跳过更新")
         return None
                         
     except Exception as e:
@@ -144,7 +145,7 @@ def get_us_stock_price(symbol: str, us_data_cache: Optional[pd.DataFrame] = None
         print(f"获取美股 {symbol} 价格失败: {e}")
         return None
 
-def get_stock_price(stock_code: str, hk_cache: Optional[pd.DataFrame] = None, us_cache: Optional[pd.DataFrame] = None) -> Optional[float]:
+def get_stock_price(stock_code: str, hk_cache: Optional[pd.DataFrame] = None, us_cache: Optional[pd.DataFrame] = None, hk_index_cache: Optional[pd.DataFrame] = None) -> Optional[float]:
     """
     获取股票价格的统一接口
     
@@ -152,6 +153,7 @@ def get_stock_price(stock_code: str, hk_cache: Optional[pd.DataFrame] = None, us
         stock_code: 内部股票代码
         hk_cache: 港股数据缓存
         us_cache: 美股数据缓存
+        hk_index_cache: 港股指数数据缓存
         
     Returns:
         股票价格，获取失败返回None
@@ -161,7 +163,7 @@ def get_stock_price(stock_code: str, hk_cache: Optional[pd.DataFrame] = None, us
     if market_type == 'hk_stock':
         return get_hk_stock_price(akshare_symbol, hk_cache)
     elif market_type == 'hk_index':
-        return get_hk_index_price(akshare_symbol, hk_cache)
+        return get_hk_index_price(akshare_symbol, hk_index_cache)
     elif market_type == 'us_stock':
         return get_us_stock_price(akshare_symbol, us_cache)
     else:
@@ -248,9 +250,10 @@ def main():
     print("正在获取市场数据缓存...")
     hk_data_cache = None
     us_data_cache = None
+    hk_index_cache = None
     
     # 检查是否有港股需要更新
-    hk_stocks = [code for code in STOCK_CONFIG.keys() if code.startswith('HK.')]
+    hk_stocks = [code for code in STOCK_CONFIG.keys() if code.startswith('HK.') and not code.endswith('800000') and not code.endswith('800700')]
     if hk_stocks:
         try:
             print("  获取港股数据缓存...")
@@ -259,6 +262,17 @@ def main():
             time.sleep(2)  # 添加延迟避免限流
         except Exception as e:
             print(f"  ✗ 获取港股数据失败: {e}")
+    
+    # 检查是否有港股指数需要更新
+    hk_indices = [code for code in STOCK_CONFIG.keys() if code in ['HK.800000', 'HK.800700']]
+    if hk_indices:
+        try:
+            print("  获取港股指数数据缓存...")
+            hk_index_cache = ak.stock_hk_index_spot_em()
+            print(f"  ✓ 成功获取港股指数数据，共 {len(hk_index_cache)} 个指数")
+            time.sleep(2)  # 添加延迟避免限流
+        except Exception as e:
+            print(f"  ✗ 获取港股指数数据失败: {e}")
     
     # 检查是否有美股需要更新
     us_stocks = [code for code in STOCK_CONFIG.keys() if code.startswith('US.')]
@@ -288,7 +302,7 @@ def main():
         print(f"  akshare代码: {akshare_symbol} (市场: {market_type})")
         
         # 获取最新价格（使用缓存数据）
-        new_price = get_stock_price(stock_code, hk_data_cache, us_data_cache)
+        new_price = get_stock_price(stock_code, hk_data_cache, us_data_cache, hk_index_cache)
         
         if new_price is not None:
             price_updates[stock_code] = new_price
