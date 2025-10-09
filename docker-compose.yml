@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  options-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: v2-options-monitor
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+      - "11111:11111"
+    volumes:
+      # 数据持久化
+      - ./v2_system/data:/app/v2_system/data
+      - ./v2_system/logs:/app/v2_system/logs
+      # 配置文件挂载（可选）
+      - ./config:/app/config:ro
+    environment:
+      - TZ=Asia/Shanghai
+      - PYTHONUNBUFFERED=1
+      # 富途API配置（可通过环境变量覆盖）
+      - FUTU_HOST=${FUTU_HOST:-127.0.0.1}
+      - FUTU_PORT=${FUTU_PORT:-11111}
+      - FUTU_UNLOCK_PWD=${FUTU_UNLOCK_PWD:-}
+      # FutuOpenD 登录配置
+      - FUTU_LOGIN_ACCOUNT=${FUTU_LOGIN_ACCOUNT:-100000}
+      - FUTU_LOGIN_PWD_MD5=${FUTU_LOGIN_PWD_MD5:-123456}
+      # 企业微信配置
+      - WEWORK_WEBHOOK_URL=${WEWORK_WEBHOOK_URL:-}
+      # 邮件配置
+      - EMAIL_USERNAME=${EMAIL_USERNAME:-}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD:-}
+    networks:
+      - options-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+networks:
+  options-network:
+    driver: bridge

@@ -133,7 +133,7 @@ class V2Notifier:
                 
                 # 构建期权详情行
                 option_detail = (
-                    f"{i}. {option_code}: {option_type}, "
+                    f"{i}. {option_code}: 【{option_type}】, "
                     f"{price:.3f}×{volume:,}张, +{volume_diff:,}张, "
                     f"{turnover/10000:.1f}万, "
                     f"持仓: {option_open_interest:,}张（{open_interest_diff:+,}）, "

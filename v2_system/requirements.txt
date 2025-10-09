@@ -6,3 +6,4 @@ scipy>=1.7.0
 flask>=2.0.0
 requests>=2.25.0
 python-dateutil>=2.8.0
+webdriver-manager
