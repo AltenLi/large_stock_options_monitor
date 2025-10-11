@@ -685,27 +685,54 @@ class BigOptionsProcessor:
     
     @retry_on_api_error(max_retries=3)
     def _get_options_big_trades_batch(self, quote_ctx, option_codes: List[str], option_stock_map: Dict[str, str], option_monitor=None) -> List[Dict[str, Any]]:
-        """V2系统批量获取期权大单交易 - 使用get_market_snapshot优化"""
+        """V2系统批量获取期权大单交易 - 使用get_market_snapshot优化，支持分批处理"""
         try:
             if not option_codes:
                 return []
             
             big_trades = []
             
-            # 🚀 批量获取期权市场快照 - 一次API调用获取所有期权数据
-            self.logger.info(f"V2批量获取{len(option_codes)}个期权的市场快照")
+            # 🚀 分批获取期权市场快照 - get_market_snapshot每次最多400条
+            BATCH_SIZE = 400
+            total_batches = (len(option_codes) + BATCH_SIZE - 1) // BATCH_SIZE
+            self.logger.info(f"V2批量获取{len(option_codes)}个期权的市场快照，分{total_batches}批处理")
             
-            try:
-                ret, snapshot_data = retry_api_call_with_empty_check(
-                    quote_ctx.get_market_snapshot,
-                    option_codes,
-                    max_retries=3,
-                    delay=10.0
-                )
-                self.logger.info(f"V2批量获取期权快照成功，获取到 {len(snapshot_data)} 条数据")
-            except Exception as e:
-                self.logger.warning(f"V2批量获取期权快照失败: {e}")
+            all_snapshot_data = []
+            
+            # 分批处理期权代码
+            for batch_idx in range(total_batches):
+                start_idx = batch_idx * BATCH_SIZE
+                end_idx = min(start_idx + BATCH_SIZE, len(option_codes))
+                batch_codes = option_codes[start_idx:end_idx]
+                
+                self.logger.info(f"V2处理第{batch_idx+1}/{total_batches}批期权快照，数量:{len(batch_codes)}")
+                
+                try:
+                    ret, batch_snapshot_data = retry_api_call_with_empty_check(
+                        quote_ctx.get_market_snapshot,
+                        batch_codes,
+                        max_retries=3,
+                        delay=10.0
+                    )
+                    
+                    if batch_snapshot_data is not None and not batch_snapshot_data.empty:
+                        all_snapshot_data.append(batch_snapshot_data)
+                        self.logger.info(f"V2第{batch_idx+1}批期权快照获取成功，获取到 {len(batch_snapshot_data)} 条数据")
+                    else:
+                        self.logger.warning(f"V2第{batch_idx+1}批期权快照获取为空")
+                        
+                except Exception as e:
+                    self.logger.warning(f"V2第{batch_idx+1}批期权快照获取失败: {e}")
+                    continue
+            
+            # 合并所有批次的快照数据
+            if not all_snapshot_data:
+                self.logger.warning("V2所有批次期权快照获取都失败")
                 return []
+            
+            import pandas as pd
+            snapshot_data = pd.concat(all_snapshot_data, ignore_index=True)
+            self.logger.info(f"V2合并所有批次快照数据完成，总计 {len(snapshot_data)} 条数据")
             
             # 获取相关股票价格（批量获取）
             unique_stocks = list(set(option_stock_map.values()))
@@ -720,18 +747,48 @@ class BigOptionsProcessor:
                         if stock_code in self.stock_price_cache and isinstance(self.stock_price_cache[stock_code], dict):
                             stock_names[stock_code] = self.stock_price_cache[stock_code].get('name', '')
             else:
-                # 批量获取股票快照
+                # 分批获取股票快照
                 try:
-                    ret_stock, stock_data = retry_api_call_with_empty_check(
-                        quote_ctx.get_market_snapshot,
-                        unique_stocks,
-                        max_retries=3,
-                        delay=10.0
-                    )
-                    for _, row in stock_data.iterrows():
-                        stock_code = row['code']
-                        stock_prices[stock_code] = float(row.get('last_price', 0))
-                        stock_names[stock_code] = row.get('name', get_stock_name(stock_code))
+                    all_stock_data = []
+                    stock_batches = (len(unique_stocks) + BATCH_SIZE - 1) // BATCH_SIZE
+                    
+                    for batch_idx in range(stock_batches):
+                        start_idx = batch_idx * BATCH_SIZE
+                        end_idx = min(start_idx + BATCH_SIZE, len(unique_stocks))
+                        batch_stocks = unique_stocks[start_idx:end_idx]
+                        
+                        self.logger.info(f"V2获取第{batch_idx+1}/{stock_batches}批股票快照，数量:{len(batch_stocks)}")
+                        
+                        try:
+                            ret_stock, batch_stock_data = retry_api_call_with_empty_check(
+                                quote_ctx.get_market_snapshot,
+                                batch_stocks,
+                                max_retries=3,
+                                delay=10.0
+                            )
+                            
+                            if batch_stock_data is not None and not batch_stock_data.empty:
+                                all_stock_data.append(batch_stock_data)
+                                self.logger.info(f"V2第{batch_idx+1}批股票快照获取成功，获取到 {len(batch_stock_data)} 条数据")
+                            else:
+                                self.logger.warning(f"V2第{batch_idx+1}批股票快照获取为空")
+                                
+                        except Exception as e:
+                            self.logger.warning(f"V2第{batch_idx+1}批股票快照获取失败: {e}")
+                            continue
+                    
+                    # 合并所有股票快照数据
+                    if all_stock_data:
+                        stock_data = pd.concat(all_stock_data, ignore_index=True)
+                        self.logger.info(f"V2合并所有批次股票快照数据完成，总计 {len(stock_data)} 条数据")
+                        
+                        for _, row in stock_data.iterrows():
+                            stock_code = row['code']
+                            stock_prices[stock_code] = float(row.get('last_price', 0))
+                            stock_names[stock_code] = row.get('name', get_stock_name(stock_code))
+                    else:
+                        raise Exception("所有批次股票快照获取都失败")
+                        
                 except Exception as e:
                     self.logger.warning(f"V2批量获取股票价格失败: {e}")
                     # 使用默认价格
